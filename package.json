@@ -1,0 +1,24 @@
+{
+  "name": "devrush-arena",
+  "version": "1.0.0",
+  "description": "DevRush Arena - a live multiplayer team-building game with 13 mini-games for tech events.",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "game",
+    "multiplayer",
+    "team-building",
+    "event"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "compression": "^1.8.2",
+    "express": "^4.19.2"
+  }
+}

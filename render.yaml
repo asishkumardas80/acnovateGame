@@ -1,0 +1,11 @@
+# Render Blueprint — deploy with one click after connecting the repo.
+# https://render.com  →  New +  →  Blueprint  →  pick this repo.
+services:
+  - type: web
+    name: devrush-arena
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    autoDeploy: true
+    healthCheckPath: /api/time

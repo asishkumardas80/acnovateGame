@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DevRush Arena</title>
+<style>
+  :root{
+    --bg:#eef1f8; --bg2:#f6f8fd; --panel:#ffffff; --panel2:#eef2fb;
+    --ink:#1b2340; --muted:#5f6b90; --line:#e2e7f3;
+    --accent:#4f7cf0; --accent2:#7c5bff; --green:#1eb866; --red:#f0426b;
+    --gold:#f4b400; --silver:#b9c2d8; --bronze:#c98a4e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;color:var(--ink);font:15px/1.5 system-ui,Segoe UI,Roboto,Arial,sans-serif;
+    min-height:100vh;background-color:#eaeefb;background-attachment:fixed;
+    background-image:
+      radial-gradient(rgba(40,55,110,.055) 1px, transparent 1.6px),
+      linear-gradient(180deg,#eef1fb 0%,#e7ecfa 100%);
+    background-size:22px 22px, 100% 100%}
+  /* animated "aurora" colour layer behind the (opaque white) cards */
+  #bg{position:fixed;inset:-18%;z-index:-1;pointer-events:none;will-change:transform;
+    background:
+      radial-gradient(38% 40% at 18% 22%, rgba(124,91,255,.42), transparent 68%),
+      radial-gradient(36% 40% at 82% 16%, rgba(79,124,240,.40), transparent 68%),
+      radial-gradient(40% 42% at 82% 82%, rgba(47,212,201,.34), transparent 68%),
+      radial-gradient(40% 42% at 15% 84%, rgba(240,66,107,.32), transparent 68%),
+      radial-gradient(34% 36% at 52% 52%, rgba(255,180,0,.24), transparent 70%);
+    animation:aurora 26s ease-in-out infinite alternate}
+  @keyframes aurora{
+    0%{transform:translate3d(-1.5%,-1%,0) scale(1) rotate(0deg)}
+    100%{transform:translate3d(2%,1.5%,0) scale(1.08) rotate(1.5deg)}}
+  @media(prefers-reduced-motion:reduce){#bg{animation:none}}
+  h1,h2,h3{margin:0 0 .4em}
+  button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 16px;
+    background:var(--accent);color:#fff;font-weight:600;transition:transform .06s,filter .15s}
+  button:hover{filter:brightness(1.08)} button:active{transform:translateY(1px)}
+  button.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+  button.warn{background:var(--red)} button.ok{background:var(--green);color:#04210f}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  input,textarea,select{font:inherit;color:var(--ink);background:var(--bg2);
+    border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+  textarea{resize:vertical;min-height:90px}
+  .wrap{max-width:1080px;margin:0 auto;padding:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .grow{flex:1}
+  .muted{color:var(--muted)}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;
+    background:var(--panel2);border:1px solid var(--line)}
+  .pill.live{background:rgba(30,184,102,.16);color:#0f8a48;border-color:rgba(30,184,102,.4)}
+  .pill.lobby{background:rgba(124,91,255,.15);color:#6a45e6;border-color:rgba(124,91,255,.4)}
+  .pill.reveal{background:rgba(244,180,0,.18);color:#b07a00;border-color:rgba(244,180,0,.45)}
+  .big{font-size:clamp(28px,6vw,54px);font-weight:800;letter-spacing:.5px}
+  .timer{font-variant-numeric:tabular-nums;font-weight:800}
+  .timer.low{color:var(--red)}
+  .hidden{display:none!important}
+  .grid2{display:grid;grid-template-columns:1fr 320px;gap:16px}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr}}
+  .lead{list-style:none;margin:0;padding:0}
+  .lead li{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;margin-bottom:6px;background:var(--bg2)}
+  .lead .rank{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:800;background:var(--panel2)}
+  .lead .rank.g1{background:var(--gold);color:#3a2b00}
+  .lead .rank.g2{background:var(--silver);color:#26304a}
+  .lead .rank.g3{background:var(--bronze);color:#331c07}
+  .lead .sc{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums}
+  .brand{font-weight:900;letter-spacing:1px;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--green));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .center{text-align:center}
+  .opt{display:block;width:100%;text-align:left;margin:8px 0;background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+  .opt.sel{outline:2px solid var(--accent);background:var(--panel)}
+  .opt.correct{background:rgba(55,214,122,.2);border-color:var(--green)}
+  .opt.wrong{background:rgba(255,84,112,.18);border-color:var(--red)}
+  pre.code{background:#0a0f22;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;
+    font:13px/1.55 ui-monospace,Consolas,monospace;color:#d6e0ff}
+  code{background:#0a0f22;color:#d6e0ff;border-radius:5px;padding:1px 6px;
+    font-family:ui-monospace,Consolas,monospace;font-size:.9em}
+  .maze{display:grid;gap:0;background:#0a0f22;border-radius:10px;padding:8px;width:max-content;
+    max-width:100%;margin:0 auto;overflow:auto}
+  .mcell{width:20px;height:20px}
+  .mcell.w{background:#33407a}
+  .mcell.p{background:transparent}
+  .mcell.fog{background:#151b30}
+  .mcell.s{background:var(--green);border-radius:4px}
+  .mcell.e{background:var(--red);border-radius:4px;box-shadow:0 0 8px var(--red)}
+  .mcell.elock{background:#7a2233;border-radius:4px}
+  .mcell.coin{background:var(--gold);border-radius:50%;box-shadow:0 0 8px var(--gold)}
+  .mcell.you{background:#fff;border-radius:50%;box-shadow:0 0 10px var(--accent);outline:2px solid var(--accent)}
+  .dpad{display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(3,54px);gap:6px;margin:14px auto;width:max-content}
+  .dpad button{width:54px;height:54px;padding:0;font-size:20px}
+  .tiles{display:grid;grid-template-columns:repeat(3,84px);gap:10px;justify-content:center;margin:16px 0}
+  .tile{height:84px;border-radius:12px;background:var(--panel2);border:1px solid var(--line)}
+  .tile.on{background:var(--accent);box-shadow:0 0 20px var(--accent)}
+  /* Memory Matrix — colourful tiles */
+  .mtiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:320px;margin:14px auto}
+  .mtile{aspect-ratio:1;border-radius:18px;cursor:pointer;
+    box-shadow:inset 0 -5px 0 rgba(0,0,0,.18);filter:brightness(.72) saturate(.85);
+    transition:transform .09s ease,filter .12s ease,box-shadow .14s ease}
+  .mtile:active{transform:scale(.95)}
+  .mtile.on{filter:brightness(1.4) saturate(1.25);transform:scale(1.05);
+    box-shadow:0 0 28px 5px currentColor, inset 0 -5px 0 rgba(0,0,0,.12)}
+  .mtiles.watch .mtile{cursor:not-allowed}
+  .mtiles.watch{opacity:.96}
+  .reactbox{height:220px;border-radius:14px;display:grid;place-items:center;font-size:22px;font-weight:800;cursor:pointer;user-select:none}
+  .qbtns{display:flex;gap:6px;flex-wrap:wrap}
+  .qbtns button{padding:6px 10px;font-size:13px}
+  .howto{margin-top:14px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+    display:flex;flex-direction:column;gap:10px}
+  .howto .hrow{display:flex;gap:10px;align-items:flex-start}
+  .howto .hicon{font-size:20px;line-height:1.2;flex:0 0 auto}
+  .howto .hlbl{font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+  .ptsbadge{font-weight:800;color:var(--accent);background:rgba(79,124,240,.12);
+    border:1px solid rgba(79,124,240,.32);border-radius:999px;padding:3px 12px;font-size:14px;
+    display:inline-block;font-variant-numeric:tabular-nums}
+  @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.28)}100%{transform:scale(1)}}
+  .pulse{animation:pop .35s}
+  .copytarget{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+    font-size:16px;line-height:1.9;margin-bottom:10px;user-select:none;max-height:230px;overflow:auto}
+  .copytarget span.ok{color:var(--green);background:rgba(30,184,102,.12);border-radius:3px}
+  #cp{min-height:130px}
+  .cbclue{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .cbclue ul{list-style:none;padding:0;margin:6px 0 0;display:flex;flex-wrap:wrap;gap:10px}
+  .cbclue li{font-size:15px}
+  .cbdig{font-family:ui-monospace,Consolas,monospace;font-size:22px;color:var(--accent);
+    background:rgba(79,124,240,.12);border-radius:6px;padding:0 8px}
+  /* Logo Guess (letter-tile) */
+  .lgstage{background:#fff;border-radius:14px;padding:18px;min-height:200px;display:flex;
+    flex-direction:column;align-items:center;justify-content:center;gap:14px;border:1px solid var(--line)}
+  .lgstage img{max-height:150px;max-width:80%;object-fit:contain}
+  .lgmiss{color:#888;font-size:13px;text-align:center}
+  .lgq{color:#334;font-weight:600}
+  .lgslots{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:14px 0}
+  .lgslot{width:42px;height:46px;border:2px solid var(--line);border-radius:8px;display:grid;place-items:center;
+    font-size:22px;font-weight:800;background:var(--bg2)}
+  .lgslot.filled{border-color:var(--accent)}
+  .lgslots.ok .lgslot{border-color:var(--green);color:var(--green)}
+  .lgslots.shake{animation:shakex .4s}
+  @keyframes shakex{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+  .lgbank{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;max-width:440px;margin:0 auto}
+  .lgtile{height:50px;font-size:18px;font-weight:800;background:var(--panel2);border:1px solid var(--line);
+    color:var(--ink);border-radius:10px;padding:0}
+  .lgtile:disabled{opacity:.22}
+  .lgtile.lgback{background:var(--bg2)}
+  .emgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:12px}
+  .emcard{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+  .emcard.solved{border-color:var(--green);background:rgba(30,184,102,.1)}
+  .ememoji{font-size:30px;letter-spacing:4px;margin-bottom:8px}
+  .emok{font-weight:800;color:var(--green)}
+  .bslist{display:flex;flex-wrap:wrap;gap:8px;max-height:220px;overflow:auto}
+  .bschip{background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600}
+  .testfails{margin-top:8px;display:flex;flex-direction:column;gap:4px;font-size:12.5px}
+  .testfails code{background:#0a0f22;color:#d6e0ff;border-radius:5px;padding:1px 6px;
+    font-family:ui-monospace,Consolas,monospace}
+  .testfails b{color:var(--red)}
+  .logogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:12px}
+  .logocard{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px}
+  .logocard img{width:100%;height:110px;object-fit:contain;background:#fff;border-radius:8px;padding:6px}
+  .logocard input{margin-top:8px}
+  .logoadmin img{height:44px;width:64px;object-fit:contain;background:#fff;border-radius:6px;padding:3px}
+  .logoadmin li{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--line);
+    border-radius:10px;padding:6px 10px;margin-bottom:6px}
+  /* avatars + people + teams */
+  .avatar{display:inline-grid;place-items:center;border-radius:50%;font-size:20px;flex:0 0 auto;
+    width:40px;height:40px;background:var(--accent);box-shadow:inset 0 0 0 2px rgba(255,255,255,.15)}
+  .avatar.sm{width:30px;height:30px;font-size:15px}
+  .avatar.lg{width:64px;height:64px;font-size:32px}
+  .people{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:12px}
+  .person{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--line);
+    border-radius:12px;padding:8px 10px;position:relative}
+  .person .nm{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .person .x{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;padding:0;
+    font-size:12px;line-height:1;background:var(--red);display:none}
+  .person:hover .x{display:block}
+  .apick{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-top:8px;max-height:150px;overflow:auto}
+  .apick button{font-size:22px;padding:6px;background:var(--bg2);border:1px solid var(--line)}
+  .apick button.sel{outline:2px solid var(--accent);background:var(--panel)}
+  .cpick{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .cpick .sw{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2px solid transparent}
+  .cpick .sw.sel{border-color:#fff}
+  .teamcard{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
+  .teamcard h3{display:flex;align-items:center;gap:8px}
+  .dot{width:14px;height:14px;border-radius:50%;display:inline-block}
+  .members{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .memchip{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--line);
+    border-radius:999px;padding:4px 10px 4px 4px;font-size:13px}
+  .chatlog{max-height:240px;overflow:auto;display:flex;flex-direction:column;gap:8px;padding-right:2px}
+  .cmsg{display:flex;gap:8px;align-items:flex-start}
+  .cmsg.me{flex-direction:row-reverse;text-align:right}
+  .cmsg .cmeta{font-size:11px;color:var(--muted);margin-bottom:2px}
+  .cmsg .ctext{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:6px 10px;
+    font-size:13px;display:inline-block;max-width:210px;word-wrap:break-word;overflow-wrap:anywhere;text-align:left}
+  .cmsg.me .ctext{background:rgba(79,124,240,.15);border-color:rgba(79,124,240,.35)}
+  #confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
+  .flash{animation:flash .6s}
+  @keyframes flash{0%{background:rgba(55,214,122,.35)}100%{background:transparent}}
+  .roundlist{display:flex;gap:6px;flex-wrap:wrap}
+  .roundlist button{padding:6px 10px;font-size:12px;background:var(--panel2);border:1px solid var(--line)}
+  .roundlist button.cur{background:var(--accent);border-color:var(--accent)}
+  a.link{color:var(--accent)}
+</style>
+</head>
+<body>
+<div id="bg" aria-hidden="true"></div>
+<canvas id="confetti"></canvas>
+<div class="wrap" id="app"></div>
+
+<script>
+/* ============================================================================
+   DevRush Arena
+   People join with a name + avatar into a global lobby. The host builds random
+   balanced teams (~6) and starts the game. Everyone then plays every mini-game
+   on their own device; a team's round score is the AVERAGE of its members'
+   points. Shared state lives in the server KV store.
+   ============================================================================ */
+
+// ---- Configuration ---------------------------------------------------------
+const HOST_CODE = 'devrush';   // host console passcode (change for your event)
+const TEAM_TARGET = 6;         // aim for this many people per team
+
+const AVATARS = ['🦊','🚀','🐉','🦄','🐼','🦁','🐯','🐸','🐙','🦉','🐺','🐝','🦈','🐢',
+  '🦕','🐧','🦖','🐬','🦩','🐨','🦥','🐳','🦇','🐌','🦋','🐰','🐷','🐵','🦓','🦒','🐲','🦅',
+  '🌟','⚡','🔥','🍕','🍩','🎸','🎮','🏆'];
+const COLORS = ['#5b8cff','#7c5bff','#37d67a','#ffd257','#ff5470','#ff8f3b','#2fd4c9',
+  '#e05be0','#8bd450','#ff6b9d'];
+
+const TEAM_POOL = [
+  {name:'Red Rockets',   color:'#ff5470'},
+  {name:'Blue Bolts',    color:'#5b8cff'},
+  {name:'Green Goblins', color:'#37d67a'},
+  {name:'Gold Griffins', color:'#ffd257'},
+  {name:'Purple Pythons',color:'#7c5bff'},
+  {name:'Orange Owls',   color:'#ff8f3b'},
+  {name:'Cyan Cyborgs',  color:'#2fd4c9'},
+  {name:'Pink Panthers', color:'#ff6b9d'},
+  {name:'Teal Titans',   color:'#12b3a6'},
+  {name:'Lime Lions',    color:'#8bd450'},
+  {name:'Crimson Comets',color:'#e0466b'},
+  {name:'Indigo Ninjas', color:'#6366f1'}
+];
+
+// ---- The 13 rounds ---------------------------------------------------------
+const ROUNDS = [
+  { id:'r1', type:'copy', title:'Copy the Paragraph', duration:180, max:100,
+    prompt:'Copy the paragraph below. You have 3 minutes — your score is how many words match the original. No pasting!',
+    texts:[
+      'Developers are the people who turn ideas into technology that makes our lives easier. From mobile applications and websites to artificial intelligence and cloud platforms, developers play an important role in shaping the digital world. Being a developer is not only about writing code; it is also about solving problems, learning continuously, and creating useful solutions. Technology changes rapidly, so developers must always be ready to learn new tools and adapt to new challenges. At the same time, they must consider security, privacy, and the impact their software can have on people. A good developer does not simply ask, “Can we build it?” but also asks, “Should we build it, and how can we build it better?” In the future, developers will continue to turn imagination into reality.'
+    ] },
+
+  { id:'r2', type:'maze', title:'Maze Runner', duration:120, max:100, cols:10, rows:7,
+    prompt:'Explore the fog! Collect ALL the gold coins, then reach the RED exit to clear the level — each level gets bigger. Arrow keys or the on-screen pad. More coins + levels = more points.' },
+
+  { id:'r3', type:'code', title:'Code Sprint', duration:240, max:100,
+    prompt:'Write sumEven(arr) that returns the sum of the POSITIVE even numbers only — ignore negatives and zero!',
+    functionName:'sumEven',
+    starter:'function sumEven(arr) {\n  // your code here\n  \n}',
+    tests:[
+      {args:[[1,2,3,4]], expected:6},
+      {args:[[0,1,2,3]], expected:2},      // 0 is not positive
+      {args:[[2,4,6,8]], expected:20},
+      {args:[[1,3,5,7]], expected:0},      // all odd
+      {args:[[10,15,20]], expected:30},
+      {args:[[-2,-4,3]], expected:0},      // TRICKY: negative evens must NOT be added
+      {args:[[]], expected:0},             // empty array
+      {args:[[7,7,8]], expected:8}
+    ],
+    solution:'function sumEven(arr) {\n  let sum = 0;\n  for (let num of arr) {\n    if (num > 0 && num % 2 === 0) {\n      sum += num;\n    }\n  }\n  return sum;\n}' },
+
+  { id:'r4', type:'quiz', title:'Guess the Output', duration:45, max:100,
+    prompt:'What does this snippet print to the console?',
+    code:"console.log([1,2,3].map(x => x * 2).join('-'));",
+    options:['2-4-6','1-2-3','[2,4,6]','246'], answerIndex:0 },
+
+  { id:'r5', type:'scramble', title:'Word Scramble', duration:60, max:100,
+    prompt:'Unscramble as many tech terms as you can in 60 seconds! Type the word and press Enter. Stuck? Skip it.',
+    words:['LOOP','ARRAY','CLASS','DEBUG','CLOUD','SERVER','PYTHON','BROWSER','COMPILER','FUNCTION'] },
+
+  { id:'r6', type:'codebreak', title:'Code Breakers', duration:360, max:100,
+    prompt:'Each teammate gets a RIDDLE that reveals one digit of your team code (code length = team size). Solve your riddle, share your digit in team chat, combine them in order, and anyone enters the full code to unlock. Fastest team scores highest!' },
+
+  { id:'r7', type:'relay', title:'Team Relay Quiz', duration:300, max:100,
+    prompt:'15 rapid-fire questions across 3 categories! Each question is on screen for 20 seconds then auto-advances. Discuss in team chat and ANYONE locks the team’s answer — it counts for everyone.',
+    questions:[
+      // ---- Java (tricky) ----
+      {cat:'☕ Java', q:'What does this Java code print?',
+        code:'Integer a = 127, b = 127;\nInteger c = 128, d = 128;\nSystem.out.println((a==b) + " " + (c==d));',
+        options:['true true','true false','false false','false true'], answerIndex:1},
+      {cat:'☕ Java', q:'What does this Java code print?',
+        code:'String x = "hi", y = "hi";\nString z = new String("hi");\nSystem.out.println((x==y) + " " + (x==z));',
+        options:['true true','true false','false true','false false'], answerIndex:1},
+      {cat:'☕ Java', q:'What does this Java statement print?',
+        code:'System.out.println(0.1 + 0.2 == 0.3);',
+        options:['true','false','0.3','compile error'], answerIndex:1},
+      {cat:'☕ Java', q:'What does this Java statement print?',
+        code:'System.out.println(1 + 2 + "3" + 4 + 5);',
+        options:['12345','3345','15','334 5'], answerIndex:1},
+      {cat:'☕ Java', q:'What does this Java method return?',
+        code:'int f() {\n  try { return 1; }\n  finally { return 2; }\n}',
+        options:['1','2','compile error','throws an exception'], answerIndex:1},
+      // ---- General Knowledge ----
+      {cat:'🌍 General Knowledge', q:'What is the capital of Australia?',
+        options:['Sydney','Melbourne','Canberra','Perth'], answerIndex:2},
+      {cat:'🌍 General Knowledge', q:'Which is the largest planet in our solar system?',
+        options:['Earth','Saturn','Jupiter','Neptune'], answerIndex:2},
+      {cat:'🌍 General Knowledge', q:'What is the chemical symbol for gold?',
+        options:['Go','Gd','Au','Ag'], answerIndex:2},
+      {cat:'🌍 General Knowledge', q:'Which is the largest ocean on Earth?',
+        options:['Atlantic','Indian','Arctic','Pacific'], answerIndex:3},
+      {cat:'🌍 General Knowledge', q:'In which year did World War II end?',
+        options:['1943','1945','1948','1950'], answerIndex:1},
+      // ---- IQ / Logic ----
+      {cat:'🧠 IQ / Logic', q:'Next in the series: 2, 6, 12, 20, ?',
+        options:['24','28','30','32'], answerIndex:2},
+      {cat:'🧠 IQ / Logic', q:'Next in the series: 1, 1, 2, 3, 5, 8, ?',
+        options:['11','12','13','15'], answerIndex:2},
+      {cat:'🧠 IQ / Logic', q:'A bat and a ball cost $1.10 together. The bat costs $1.00 more than the ball. How much is the ball?',
+        options:['$0.10','$0.05','$1.00','$0.15'], answerIndex:1},
+      {cat:'🧠 IQ / Logic', q:'Which number is the odd one out: 9, 16, 24, 25?',
+        options:['9','16','24','25'], answerIndex:2},
+      {cat:'🧠 IQ / Logic', q:'All Bloops are Razzies. All Razzies are Lazzies. Are all Bloops definitely Lazzies?',
+        options:['Yes','No','Cannot be determined','Only some'], answerIndex:0}
+    ] },
+
+  { id:'r8', type:'memory', title:'Memory Matrix', duration:75, max:100,
+    prompt:'Watch the tiles light up, then repeat the sequence. Each correct round adds one more tile.' },
+
+  { id:'r9', type:'reaction', title:'Reaction Rush', duration:45, max:100,
+    prompt:'Wait for GREEN, then tap as fast as you can. Best average of 3 attempts wins.' },
+
+  { id:'r10', type:'text', title:'Cipher Crack', duration:120, max:100,
+    prompt:'Decode this Caesar cipher (each letter shifted forward by 6):', puzzle:'IXGIQ ZNK YKIXKZ IUJK',
+    answer:'CRACK THE SECRET CODE', hint:'Shift every letter back by 6 (I→C, X→R, G→A …).' },
+
+  { id:'r11', type:'emoji', title:'Emoji Decode', duration:180, max:100,
+    prompt:'Decode all 10 emoji puzzles as a TEAM! Talk it out in team chat — anyone can lock in an answer. 10 points per correct guess.',
+    puzzles:[
+      {e:'🍏📱', accept:['APPLE']},
+      {e:'👻📸', accept:['SNAPCHAT','SNAP']},
+      {e:'🚗⚡', accept:['TESLA']},
+      {e:'📺🔴', accept:['NETFLIX']},
+      {e:'🪟🖥️', accept:['WINDOWS','MICROSOFT']},
+      {e:'🎧🟢', accept:['SPOTIFY']},
+      {e:'📦🙂', accept:['AMAZON']},
+      {e:'👍📘', accept:['FACEBOOK','META']},
+      {e:'🔍🌈', accept:['GOOGLE']},
+      {e:'▶️🔴', accept:['YOUTUBE']}
+    ] },
+
+  { id:'r12', type:'bughunt', title:'Bug Hunt', duration:90, max:100,
+    prompt:'This factorial function has ONE bug. Which line number is wrong?',
+    lines:[
+      'function factorial(n) {',
+      '  let result = 1;',
+      '  for (let i = 1; i < n; i++) {',
+      '    result *= i;',
+      '  }',
+      '  return result;',
+      '}'
+    ], answerLine:3,
+    explanation:'Line 3: the loop should be i <= n. With i < n it stops one short and misses the final factor.' },
+
+  { id:'r13', type:'logoguess', title:'Logo Guess', duration:180, max:100, count:7,
+    prompt:'Guess the brand from its logo — tap the letters to spell it out!',
+    logos:[
+      {img:'logos/github.png',     answer:'GITHUB',     hint:'Where developers host code — the Octocat'},
+      {img:'logos/docker.png',     answer:'DOCKER',     hint:'Containers — the friendly whale'},
+      {img:'logos/figma.png',      answer:'FIGMA',      hint:'Collaborative UI design tool'},
+      {img:'logos/slack.png',      answer:'SLACK',      hint:'Work chat — colourful hashtag'},
+      {img:'logos/firebase.png',   answer:'FIREBASE',   hint:'Google’s app backend — a flame'},
+      {img:'logos/mongodb.png',    answer:'MONGODB',    hint:'NoSQL database — a green leaf'},
+      {img:'logos/kubernetes.png', answer:'KUBERNETES', hint:'Container orchestration — a ship’s helm'},
+      {img:'logos/vercel.png',     answer:'VERCEL',     hint:'Frontend hosting — a black triangle'},
+      {img:'logos/redis.png',      answer:'REDIS',      hint:'In-memory data store — red cubes'},
+      {img:'logos/discord.png',    answer:'DISCORD',    hint:'Gamer chat — the controller face'},
+      {img:'logos/nvidia.png',     answer:'NVIDIA',     hint:'GPU maker — the green eye'},
+      {img:'logos/airbnb.png',     answer:'AIRBNB',     hint:'Home rentals — the “bélo” symbol'},
+      {img:'logos/reddit.png',     answer:'REDDIT',     hint:'“Front page of the internet” — the alien'},
+      {img:'logos/notion.png',     answer:'NOTION',     hint:'All-in-one notes & workspace — the N'}
+    ] }
+];
+
+// How-to-play + how-points-work, shown on each round's "get ready" screen.
+const GAME_HELP = {
+  r1:{how:'Retype the paragraph exactly as shown — typing only, no copy-paste.',
+      pts:'Score = the % of words that match the original (up to 100).'},
+  r2:{how:'Move with the arrow keys or on-screen pad through the fog. Grab every gold coin, then reach the red exit to clear the level. Each level you clear gets bigger.',
+      pts:'+5 per coin and +20 per level cleared (up to 100).'},
+  r3:{how:'Write sumEven(arr) to add up only the POSITIVE even numbers (ignore negatives and zero). Hit “Run tests” to check — it shows any failing cases.',
+      pts:'Score = the % of test cases your code passes (up to 100).'},
+  r4:{how:'Read the code snippet and pick what it prints to the console.',
+      pts:'Correct answer scores up to 100 — the sooner you answer, the more you get.'},
+  r5:{how:'Unscramble as many tech terms as you can in 60 seconds — type each and press Enter. Skip any that stump you.',
+      pts:'10 points per word you unscramble correctly (10 words = up to 100).'},
+  r6:{how:'A TEAM game! Each teammate gets a riddle whose answer is one digit of the team code (code length = number of members). Solve your riddle, share your digit in chat, and anyone enters the combined code to unlock.',
+      ex:'3-person team → Ana (#1) solves "sides of a triangle" = 3, Ben (#2) solves "half of twelve" = 6, Cara (#3) solves "days in a week" = 7 → combine in order = code 367.',
+      pts:'Unlocking earns 60 points, PLUS a time bonus of up to 40 more the faster you crack it (max 100). Unlock early to beat rival teams!'},
+  r7:{how:'A TEAM game! Everyone sees the same question at the same time. Each question lasts 20 seconds then auto-advances. Talk it over in team chat, then anyone taps the team’s answer — it locks (green if right, red if wrong) for everyone.',
+      ex:'15 questions across 💻 Developer, 🌍 General Knowledge and 🧠 IQ/Logic. Answer within 20 seconds — if no one answers in time, it moves on and that question scores 0.',
+      pts:'Points for every question your team answers correctly (all 15 correct = 100). One shared team score.'},
+  r8:{how:'Watch the tiles flash in order, then tap them back in the same order. The sequence grows each round.',
+      pts:'+12 points for every level you reach (up to 100).'},
+  r9:{how:'Wait for the box to turn GREEN, then tap as fast as you can. You get 3 tries.',
+      pts:'The faster your average reaction, the higher your score (up to 100).'},
+  r10:{how:'A Caesar cipher shifts every letter forward along the alphabet by a fixed amount. Shift each letter back (the hint tells you by how much) to reveal the message, then type it.',
+      ex:'Example with a shift of 3: K→H, H→E, O→L, O→L, R→O — so “KHOOR” decodes to “HELLO”. (This round uses a different shift — check the hint.)',
+      pts:'Correct answer scores up to 100 — the sooner you decode it, the more you get.'},
+  r11:{how:'A TEAM game! 10 emoji puzzles — each pair of emojis hints at a famous brand or app. Discuss in team chat and anyone can lock in a guess for any puzzle.',
+      ex:'🍏 (apple) + 📱 (phone) → the brand “APPLE”. Type your guess under each puzzle and hit Guess.',
+      pts:'10 points per correct puzzle your team cracks (all 10 = 100). One shared team score.'},
+  r12:{how:'Read the code, spot the ONE line with the bug, and tap that line number.',
+      pts:'Correct answer scores up to 100 — the sooner you answer, the more you get.'},
+  r13:{how:'A logo appears — tap the lettered tiles to spell the brand name into the slots. Stuck? Use “I Need a Hint” to reveal a letter. Solve as many as you can.',
+      ex:'You see the Google “G”. Tap G-O-O-G-L-E from the tiles to fill the slots → correct!',
+      pts:'Points for each logo you spell correctly (all of them = 100).'}
+};
+
+// ---- Small helpers ---------------------------------------------------------
+const $ = (s,el=document)=>el.querySelector(s);
+const app = $('#app');
+const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s||'').trim().toUpperCase().replace(/\s+/g,' ');
+const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
+const uid = ()=> (crypto.randomUUID?crypto.randomUUID():'p'+Date.now()+Math.random().toString(36).slice(2));
+
+async function apiGetAll(){ const r=await fetch('/api/all'); return r.json(); }
+async function apiSet(key,value){ return fetch('/api/storage/'+encodeURIComponent(key),
+  {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({value})}); }
+async function apiDel(key){ return fetch('/api/storage/'+encodeURIComponent(key),{method:'DELETE'}); }
+async function apiReset(){ return fetch('/api/reset',{method:'POST'}); }
+async function apiUpload(filename,dataUrl){ const r=await fetch('/api/upload',
+  {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename,dataUrl})});
+  return r.json(); }
+function fileToDataUrl(file){ return new Promise((res,rej)=>{const fr=new FileReader();
+  fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(file);}); }
+function logoSet(){ return Array.isArray(STORE['config:logoset'])?STORE['config:logoset']:[]; }
+
+// Clock-skew correction so the countdown matches across devices.
+let serverOffset = 0;
+async function syncClock(){
+  try{ const t0=Date.now(); const r=await fetch('/api/time'); const {now}=await r.json();
+    serverOffset = now - Math.round((Date.now()+t0)/2); }catch(e){}
+}
+const serverNow = ()=>Date.now()+serverOffset;
+
+// ---- Sound -----------------------------------------------------------------
+let actx=null;
+function beep(freq=660,dur=.12,type='sine',vol=.15){
+  try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    const o=actx.createOscillator(),g=actx.createGain();
+    o.type=type;o.frequency.value=freq;o.connect(g);g.connect(actx.destination);
+    g.gain.setValueAtTime(vol,actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+dur);
+    o.start();o.stop(actx.currentTime+dur);}catch(e){}
+}
+const sndGood =()=>{beep(660,.1);setTimeout(()=>beep(990,.14),90);};
+const sndBad  =()=>beep(160,.25,'sawtooth',.12);
+const sndAward=()=>{beep(523,.1);setTimeout(()=>beep(659,.1),90);setTimeout(()=>beep(784,.18),180);};
+const sndTick =()=>beep(880,.05,'square',.05);
+
+// ---- Confetti --------------------------------------------------------------
+const cvs=$('#confetti'),cx=cvs.getContext('2d');let parts=[];
+function resizeCvs(){cvs.width=innerWidth;cvs.height=innerHeight;}
+addEventListener('resize',resizeCvs);resizeCvs();
+function confetti(n=140){
+  for(let i=0;i<n;i++)parts.push({x:innerWidth/2,y:innerHeight/3,
+    vx:(Math.random()-.5)*14,vy:Math.random()*-12-4,
+    c:['#5b8cff','#7c5bff','#37d67a','#ffd257','#ff5470'][i%5],
+    r:4+Math.random()*4,life:60+Math.random()*40});
+}
+function confLoop(){cx.clearRect(0,0,cvs.width,cvs.height);
+  parts=parts.filter(p=>p.life>0);
+  parts.forEach(p=>{p.vy+=.3;p.x+=p.vx;p.y+=p.vy;p.life--;
+    cx.fillStyle=p.c;cx.fillRect(p.x,p.y,p.r,p.r);});
+  requestAnimationFrame(confLoop);}
+confLoop();
+
+// ---- Seeded RNG + maze generator -------------------------------------------
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function genMaze(cols,rows,seed){
+  const rnd=mulberry32(seed),W=cols*2+1,H=rows*2+1;
+  const g=Array.from({length:H},()=>Array(W).fill(1));
+  function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+  function carve(cx,cy){g[cy*2+1][cx*2+1]=0;
+    for(const [dx,dy] of shuffle([[0,-1],[1,0],[0,1],[-1,0]])){
+      const nx=cx+dx,ny=cy+dy;
+      if(nx>=0&&nx<cols&&ny>=0&&ny<rows&&g[ny*2+1][nx*2+1]===1){
+        g[cy*2+1+dy][cx*2+1+dx]=0;carve(nx,ny);}}}
+  carve(0,0);
+  return {grid:g,start:[1,1],end:[H-2,W-2]};
+}
+
+// ---- Local (per-browser) state --------------------------------------------
+let ROLE = null;                              // 'player' | 'host'
+let MY = null;                                // {pid,name,emoji,color}
+try{ MY = JSON.parse(localStorage.getItem('dra_me')||'null'); }catch(e){ MY=null; }
+let STORE = {};                               // last /api/all snapshot
+let G = null;                                 // current game state
+let lastKey = '';                             // stage:phase:roundIndex -> rebuild
+let activeGame = null;
+let celebrated = 0;                           // my team's total, for celebration
+
+function defaultGame(){ return {stage:'lobby', roundIndex:0, phase:'lobby', tStart:0, duration:0}; }
+
+// ---- People & teams (derived from STORE) -----------------------------------
+function allPlayers(){
+  return Object.keys(STORE).filter(k=>k.startsWith('player:'))
+    .map(k=>STORE[k]).filter(Boolean).sort((a,b)=>(a.ts||0)-(b.ts||0));
+}
+function teamsMeta(){ return Array.isArray(STORE['teams'])?STORE['teams']:[]; }
+function teamOf(pid){ return teamsMeta().find(t=>(t.pids||[]).includes(pid)); }
+function teamMembers(t){ return (t.pids||[]).map(pid=>STORE['player:'+pid]).filter(Boolean); }
+function avatarHTML(p,cls=''){ if(!p) return '';
+  return `<span class="avatar ${cls}" style="background:${esc(p.color||'#5b8cff')}">${esc(p.emoji||'🙂')}</span>`; }
+
+// Count a brainstorm team's accepted (unique) answers from the shared list.
+function bsEntries(teamId,r){ const pre='bs:'+r+':'+teamId+':';
+  return Object.keys(STORE).filter(k=>k.startsWith(pre)).map(k=>STORE[k]).filter(Boolean)
+    .sort((a,b)=>(a.ts||0)-(b.ts||0)); }
+function bsAccepted(round,teamId,r){ const acc=new Set((round.accept||[]).map(norm));
+  return bsEntries(teamId,r).filter(e=>acc.has(norm(e.text))).length; }
+
+function teamRoundScore(t,r){
+  const ov=STORE['tscore:'+r+':'+t.id]; if(typeof ov==='number') return ov;   // host override wins
+  const round=ROUNDS[r];
+  // Collaborative games are scored at TEAM level (derived from shared answers).
+  if(round && round.type==='brainstorm'){
+    const n=bsAccepted(round,t.id,r);
+    return Math.min(round.max||100, Math.round(n/(round.target||10)*(round.max||100)));
+  }
+  if(round && round.type==='codebreak'){
+    const cb=STORE['cb:'+r+':'+t.id]; return (cb&&cb.solved)?cb.score:0;
+  }
+  if(round && round.type==='relay'){
+    const qs=round.questions||[]; let correct=0;
+    for(let i=0;i<qs.length;i++){ const a=STORE['rq:'+r+':'+t.id+':'+i]; if(a&&a.choice===qs[i].answerIndex) correct++; }
+    return qs.length?Math.round(correct/qs.length*(round.max||100)):0;
+  }
+  if(round && round.type==='emoji'){
+    const pz=round.puzzles||[]; let correct=0;
+    for(let i=0;i<pz.length;i++){ const a=STORE['em:'+r+':'+t.id+':'+i];
+      if(a && (pz[i].accept||[]).map(norm).includes(norm(a.text))) correct++; }
+    return pz.length?Math.round(correct/pz.length*(round.max||100)):0;
+  }
+  // Individual games: team score = average of members' points.
+  const m=teamMembers(t); if(!m.length) return 0;
+  let s=0; m.forEach(p=>{const v=STORE['pscore:'+r+':'+p.pid]; if(typeof v==='number') s+=v;});
+  return Math.round(s/m.length);
+}
+function teamTotal(t){ let s=0; for(let i=0;i<ROUNDS.length;i++) s+=teamRoundScore(t,i); return s; }
+function teamLeaderboard(){
+  return teamsMeta().map(t=>({t,score:teamTotal(t)}))
+    .sort((a,b)=>b.score-a.score||a.t.name.localeCompare(b.t.name));
+}
+function myTeamTotal(){ if(!MY) return 0; const t=teamOf(MY.pid); return t?teamTotal(t):0; }
+
+// ---- Team chat (per-message keys so teammates never clobber each other) -----
+function teamChat(teamId){
+  return Object.keys(STORE).filter(k=>k.startsWith('chat:'+teamId+':'))
+    .map(k=>STORE[k]).filter(Boolean).sort((a,b)=>(a.ts||0)-(b.ts||0));
+}
+async function sendChat(teamId,text){
+  text=(text||'').trim(); if(!text||!teamId) return;
+  const id=uid();
+  await apiSet('chat:'+teamId+':'+id,
+    {id,pid:MY.pid,name:MY.name,emoji:MY.emoji,color:MY.color,text:text.slice(0,300),ts:serverNow()});
+}
+function chatHTML(teamId){
+  const msgs=teamChat(teamId).slice(-40);
+  if(!msgs.length) return '<p class="muted" style="font-size:13px">No messages yet — say hi to your team! 👋</p>';
+  return msgs.map(m=>`<div class="cmsg${m.pid===MY.pid?' me':''}">
+    ${avatarHTML(m,'sm')}
+    <div><div class="cmeta">${esc(m.name)}</div><div class="ctext">${esc(m.text)}</div></div>
+  </div>`).join('');
+}
+
+function leaderboardHTML(highlightId){
+  const lb=teamLeaderboard();
+  if(!lb.length) return '<p class="muted">Teams not built yet.</p>';
+  return '<ul class="lead">'+lb.map((r,i)=>{
+    const g=i===0?'g1':i===1?'g2':i===2?'g3':'';
+    const me=r.t.id===highlightId?'style="outline:2px solid var(--accent)"':'';
+    return `<li ${me}><span class="rank ${g}">${i+1}</span>
+      <span class="dot" style="background:${esc(r.t.color)}"></span>
+      <span>${esc(r.t.name)}</span><span class="sc">${r.score}</span></li>`;
+  }).join('')+'</ul>';
+}
+
+// ============================================================================
+//  ROUTER / LANDING
+// ============================================================================
+function routeLanding(){
+  ROLE=null;
+  localStorage.removeItem('dra_role');   // explicit exit ends the resumable session
+  app.innerHTML = `
+    <div class="card center" style="margin-top:8vh">
+      <div class="big brand">DEVRUSH ARENA</div>
+      <p class="muted">Live multiplayer team-building — 13 mini-games, one champion.</p>
+      <div class="row" style="justify-content:center;margin-top:18px">
+        <button id="bJoin">🎮 Join the Arena</button>
+        <button id="bHost" class="ghost">🎛️ Host Console</button>
+      </div>
+    </div>`;
+  $('#bJoin').onclick=routeJoin;
+  $('#bHost').onclick=routeHostGate;
+}
+
+function routeJoin(){
+  let emoji = (MY&&MY.emoji)||AVATARS[0];
+  let color = (MY&&MY.color)||COLORS[0];
+  app.innerHTML = `
+    <div class="card" style="max-width:460px;margin:6vh auto">
+      <h2 class="center">Join the Arena</h2>
+      <div class="center" style="margin:10px 0"><span id="prev" class="avatar lg" style="background:${color}">${emoji}</span></div>
+      <label class="muted" style="font-size:13px">Your name</label>
+      <input id="nm" placeholder="e.g. Priya" autocomplete="off" maxlength="24" value="${MY?esc(MY.name):''}"/>
+      <label class="muted" style="font-size:13px;display:block;margin-top:10px">Pick an avatar</label>
+      <div class="apick" id="apick">${AVATARS.map(a=>
+        `<button data-a="${a}" class="${a===emoji?'sel':''}">${a}</button>`).join('')}</div>
+      <label class="muted" style="font-size:13px;display:block;margin-top:10px">Pick a color</label>
+      <div class="cpick" id="cpick">${COLORS.map(c=>
+        `<span class="sw ${c===color?'sel':''}" data-c="${c}" style="background:${c}"></span>`).join('')}</div>
+      <button id="go" style="width:100%;margin-top:16px">Enter Lobby</button>
+      <button class="ghost" id="back" style="width:100%;margin-top:8px">← Back</button>
+    </div>`;
+  const prev=$('#prev');
+  const paint=()=>{prev.textContent=emoji;prev.style.background=color;};
+  $('#apick').querySelectorAll('button').forEach(b=>b.onclick=()=>{emoji=b.dataset.a;
+    $('#apick').querySelectorAll('button').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');paint();});
+  $('#cpick').querySelectorAll('.sw').forEach(s=>s.onclick=()=>{color=s.dataset.c;
+    $('#cpick').querySelectorAll('.sw').forEach(x=>x.classList.remove('sel'));s.classList.add('sel');paint();});
+  $('#back').onclick=routeLanding;
+  $('#go').onclick=async()=>{
+    const name=$('#nm').value.trim();
+    if(!name){ $('#nm').style.borderColor='var(--red)'; return; }
+    const pid=(MY&&MY.pid)||uid();
+    MY={pid,name,emoji,color};
+    localStorage.setItem('dra_me',JSON.stringify(MY));
+    await apiSet('player:'+pid,{pid,name,emoji,color,ts:serverNow()});
+    startPlayer();
+  };
+}
+
+function routeHostGate(){
+  app.innerHTML = `
+    <div class="card center" style="margin-top:12vh">
+      <h2>Host Console</h2>
+      <div style="max-width:320px;margin:0 auto">
+        <input id="code" type="password" placeholder="Host passcode" />
+        <button id="go" style="margin-top:12px;width:100%">Open Console</button>
+        <button class="ghost" id="back" style="margin-top:8px;width:100%">← Back</button>
+      </div>
+    </div>`;
+  $('#back').onclick=routeLanding;
+  const go=()=>{ if($('#code').value===HOST_CODE) startHost();
+    else { $('#code').style.borderColor='var(--red)'; sndBad(); } };
+  $('#go').onclick=go;
+  $('#code').addEventListener('keydown',e=>{if(e.key==='Enter')go();});
+}
+
+// ============================================================================
+//  POLLING
+// ============================================================================
+let pollTimer=null, storeVersion=-1;
+async function poll(){
+  try{
+    const r = await fetch('/api/all?v='+storeVersion);
+    if(r.status===304) return;                 // store unchanged since last poll — cheap
+    storeVersion = Number(r.headers.get('X-Store-Version')||'0');
+    STORE = await r.json();
+    G = STORE.game || defaultGame();
+    if(ROLE==='player') renderPlayer();
+    else if(ROLE==='host') renderHost();
+  }catch(e){}
+}
+function startPolling(ms){ clearInterval(pollTimer); poll(); pollTimer=setInterval(poll,ms); }
+
+// ---- Timer -----------------------------------------------------------------
+function remaining(){
+  if(!G||G.phase!=='playing') return 0;
+  return Math.max(0,Math.ceil((G.tStart+G.duration*1000-serverNow())/1000));
+}
+function fmt(sec){const m=Math.floor(sec/60),s=sec%60;return m+':'+String(s).padStart(2,'0');}
+let lastTick=-1;
+setInterval(()=>{
+  const rem=remaining();
+  document.querySelectorAll('.timer').forEach(el=>{
+    el.textContent=fmt(rem); el.classList.toggle('low',rem<=10&&G&&G.phase==='playing');
+  });
+  if(G&&G.phase==='playing'){
+    if(rem<=5&&rem>0&&rem!==lastTick) sndTick();
+    if(rem===0&&lastTick!==0 && ROLE==='player' && activeGame && !activeGame.submitted){
+      submitActiveGame(true);
+    }
+    lastTick=rem;
+    if(ROLE==='player' && G.stage==='game' && ROUNDS[G.roundIndex] && ROUNDS[G.roundIndex].type==='relay') relayTick();
+  }
+},250);
+
+// ============================================================================
+//  PLAYER VIEW
+// ============================================================================
+function startPlayer(){ ROLE='player'; localStorage.setItem('dra_role','player'); lastKey=''; celebrated=myTeamTotal(); startPolling(2000); }
+
+function renderPlayer(){
+  if(!STORE['player:'+MY.pid]){ // was reset/removed by host -> re-register
+    apiSet('player:'+MY.pid,{...MY,ts:serverNow()});
+  }
+  const stage=G.stage||'lobby';
+  // Include my team in the key EXCEPT during active play, so a late-joiner's
+  // assignment refreshes the header/ready screen without tearing down a live game.
+  const teamKey = G.phase==='playing' ? '' : (':'+((teamOf(MY.pid)||{}).id||'none'));
+  const key = stage==='game' ? ('game:'+G.phase+':'+G.roundIndex+teamKey) : 'lobby';
+  if(key!==lastKey){
+    lastKey=key;
+    if(activeGame&&!activeGame.submitted) submitActiveGame(true);
+    if(activeGame&&activeGame.cleanup) activeGame.cleanup();
+    activeGame=null;
+    if(stage==='game') buildPlayerGame(); else buildPlayerLobby();
+  }
+  // dynamic bits
+  if(stage==='game'){
+    const my=myTeamTotal();
+    if(my>celebrated){ confetti(); sndAward(); }
+    celebrated=my;
+    const sc=$('#teamscore'); if(sc) sc.textContent=my;
+    const t=teamOf(MY.pid);
+    const lb=$('#lb'); if(lb){ lb.innerHTML=leaderboardHTML(t&&t.id); }
+    const cl=$('#chatlog'); if(cl && t){ const atBottom=cl.scrollHeight-cl.scrollTop-cl.clientHeight<40;
+      cl.innerHTML=chatHTML(t.id); if(atBottom) cl.scrollTop=cl.scrollHeight; }
+    if(G.phase==='playing'){
+      const rt=ROUNDS[G.roundIndex].type;
+      if(rt==='brainstorm') refreshBrainstorm();
+      else if(rt==='codebreak') refreshCodebreak();
+      else if(rt==='relay') refreshRelay();
+      else if(rt==='emoji') refreshEmoji();
+      else refreshSubmitCount();
+    }
+  } else {
+    refreshLobbyPlayer();
+  }
+}
+
+// ---- Player: lobby (pre-start) ---------------------------------------------
+function buildPlayerLobby(){
+  app.innerHTML=`
+    <div class="row" style="justify-content:space-between;margin-bottom:14px">
+      <span class="brand" style="font-size:20px;font-weight:900">DEVRUSH</span>
+      <button class="ghost" id="leave">Leave</button>
+    </div>
+    <div class="card center">
+      ${avatarHTML(MY,'lg')}
+      <h2 style="margin-top:8px">You're in, ${esc(MY.name)}!</h2>
+      <p class="muted">Teams are picked randomly by the host. Sit tight — the game will start soon.</p>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h3>In the lobby</h3><span class="pill" id="cnt">0 joined</span></div>
+      <div class="people" id="people"></div>
+    </div>`;
+  $('#leave').onclick=()=>{clearInterval(pollTimer);lastKey='';routeLanding();};
+}
+function refreshLobbyPlayer(){
+  const ppl=allPlayers(); const g=$('#people'); const c=$('#cnt');
+  if(c) c.textContent=ppl.length+' joined';
+  if(g) g.innerHTML=ppl.map(p=>`<div class="person">${avatarHTML(p)}
+    <span class="nm">${esc(p.name)}${p.pid===MY.pid?' (you)':''}</span></div>`).join('');
+}
+
+// ---- Player: game ----------------------------------------------------------
+function buildPlayerGame(){
+  const round=ROUNDS[G.roundIndex];
+  const t=teamOf(MY.pid);
+  const teamBadge = t
+    ? `<span class="pill" style="background:${esc(t.color)}22;border-color:${esc(t.color)};color:${esc(t.color)}">${esc(t.name)}</span>`
+    : `<span class="pill">assigning…</span>`;
+  app.innerHTML=`
+    <div class="row" style="justify-content:space-between;margin-bottom:14px">
+      <div class="row">${avatarHTML(MY,'sm')}<b>${esc(MY.name)}</b> ${teamBadge}</div>
+      <div class="row">
+        <span class="pill">Team score <b id="teamscore">0</b></span>
+        <button class="ghost" id="leave">Leave</button></div>
+    </div>
+    <div class="grid2">
+      <div><div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div><span class="pill ${G.phase==='playing'?'live':G.phase==='reveal'?'reveal':'lobby'}">
+            ${G.phase==='playing'?'LIVE':G.phase.toUpperCase()}</span>
+            <span class="muted"> Round ${G.roundIndex+1}/${ROUNDS.length}</span></div>
+          <div class="timer big" style="font-size:34px">0:00</div>
+        </div>
+        <h2 style="margin-top:10px">${esc(round.title)}</h2>
+        <div id="gamearea"></div>
+      </div></div>
+      <div>
+        <div class="card"><h3>Leaderboard</h3><div id="lb"></div></div>
+        ${t?`<div class="card"><h3>💬 ${esc(t.name)} chat</h3>
+          <div id="chatlog" class="chatlog"></div>
+          <div class="row" style="gap:6px;margin-top:8px">
+            <input id="chatin" placeholder="Message your team…" maxlength="300"
+              autocomplete="off" style="flex:1"/>
+            <button id="chatsend">Send</button></div></div>`:''}
+      </div>
+    </div>`;
+  $('#leave').onclick=()=>{clearInterval(pollTimer);lastKey='';routeLanding();};
+
+  if(t){
+    const send=async()=>{ const inp=$('#chatin'); const v=inp.value; if(!v.trim()) return;
+      inp.value=''; await sendChat(t.id,v); poll(); };
+    const sb=$('#chatsend'); if(sb) sb.onclick=send;
+    const ci=$('#chatin'); if(ci) ci.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();send();}});
+    const cl=$('#chatlog'); if(cl){ cl.innerHTML=chatHTML(t.id); cl.scrollTop=cl.scrollHeight; }
+  }
+
+  if(G.phase==='lobby') buildRoundReady(round,t);
+  else if(G.phase==='playing') mountTeamGame(round);
+  else if(G.phase==='reveal') buildTeamReveal(round);
+}
+
+// Shared "how to play + points + time" card, used on the player ready screen
+// AND on the host console so the host can brief everyone.
+function helpCardHTML(round){
+  const h=GAME_HELP[round.id]||{how:round.prompt||'',pts:'Up to 100 points.'};
+  const m=Math.floor(round.duration/60), s=round.duration%60;
+  const time=(m?m+' min ':'')+(s?s+' sec':'');
+  const teamNote = ['codebreak','brainstorm','relay','emoji'].includes(round.type)
+    ? 'one <b>shared team score</b>.'
+    : "your team's score is the <b>average</b> of all members' points.";
+  return `<div class="howto">
+    <div class="hrow"><span class="hicon">🎮</span><div><div class="hlbl">How to play</div>
+      <div>${esc(h.how)}</div></div></div>
+    ${h.ex?`<div class="hrow"><span class="hicon">📝</span><div><div class="hlbl">Example</div>
+      <div>${esc(h.ex)}</div></div></div>`:''}
+    <div class="hrow"><span class="hicon">⭐</span><div><div class="hlbl">Points</div>
+      <div>${esc(h.pts)}</div></div></div>
+    <div class="hrow"><span class="hicon">⏱️</span><div><div class="hlbl">Time</div>
+      <div>${time} — ${teamNote}</div></div></div>
+  </div>`;
+}
+function buildRoundReady(round,t){
+  const ga=$('#gamearea');
+  const mates = t ? teamMembers(t) : [];
+  ga.innerHTML = `
+    ${t?`<p>You're on <b style="color:${esc(t.color)}">${esc(t.name)}</b> with:</p>
+      <div class="members">${mates.map(m=>`<span class="memchip">${avatarHTML(m,'sm')}${esc(m.name)}</span>`).join('')}</div>`:''}
+    ${helpCardHTML(round)}
+    <p class="muted" style="margin-top:12px">Get ready — the host will start <b>${esc(round.title)}</b> shortly. 💪</p>`;
+}
+
+async function postResult(score,display){
+  const i=G.roundIndex;
+  await apiSet('panswer:'+i+':'+MY.pid,{display:display||'',name:MY.name,ts:serverNow()});
+  if(score!=null) await apiSet('pscore:'+i+':'+MY.pid,score);
+}
+
+function submitActiveGame(isTimeout){
+  if(!activeGame||activeGame.submitted) return;
+  activeGame.submitted=true;
+  const res=activeGame.finalize(isTimeout)||{};
+  postResult(res.score,res.display);
+  const ga=$('#gamearea');
+  if(ga){
+    const done=document.createElement('div');done.style.marginTop='12px';
+    done.innerHTML=`<span class="pill live">Submitted ✓</span> `+
+      (res.score!=null?`<b>+${res.score} pts</b> `:'')+
+      `<span class="muted">${esc(res.display||'')}</span>`;
+    ga.appendChild(done);
+  }
+  if(res.score!=null){ res.score>0?sndGood():sndBad(); }
+}
+
+function refreshSubmitCount(){
+  const t=teamOf(MY.pid); if(!t) return;
+  const m=teamMembers(t); const done=m.filter(p=>STORE['panswer:'+G.roundIndex+':'+p.pid]).length;
+  const el=$('#subcount'); if(el) el.textContent=`${done}/${m.length} teammates done`;
+}
+
+// ---- game mounting (unchanged engines) -------------------------------------
+function mountTeamGame(round){
+  const ga=$('#gamearea');
+  ga.innerHTML=`<p>${esc(round.prompt)}</p><div class="muted" id="subcount" style="font-size:12px"></div>`;
+  const box=document.createElement('div'); ga.appendChild(box);
+  // Collaborative games are team-scored (no per-person panswer) — never apply the
+  // individual "already submitted" lock to them.
+  const collaborative = ['brainstorm','codebreak','relay','emoji'].includes(round.type);
+  const already = !collaborative && STORE['panswer:'+G.roundIndex+':'+MY.pid];
+  activeGame={round,submitted:false,finalize:()=>({}),cleanup:null};
+  switch(round.type){
+    case 'copy':      gameCopy(box,round); break;
+    case 'text':      gameText(box,round); break;
+    case 'scramble':  gameScramble(box,round); break;
+    case 'brainstorm':gameBrainstorm(box,round); break;
+    case 'codebreak': gameCodebreak(box,round); break;
+    case 'relay':     gameRelay(box,round); break;
+    case 'emoji':     gameEmoji(box,round); break;
+    case 'quiz':      gameQuiz(box,round); break;
+    case 'bughunt':   gameBughunt(box,round); break;
+    case 'code':      gameCode(box,round); break;
+    case 'maze':      gameMaze(box,round); break;
+    case 'typing':    gameTyping(box,round); break;
+    case 'memory':    gameMemory(box,round); break;
+    case 'reaction':  gameReaction(box,round); break;
+    case 'logo':      gameLogo(box,round); break;
+    case 'logoguess': gameLogoGuess(box,round); break;
+    default: box.innerHTML='<p class="muted">Unknown game type.</p>';
+  }
+  if(already){
+    activeGame.submitted=true;
+    box.querySelectorAll('button,input,textarea').forEach(el=>el.disabled=true);
+    const d=document.createElement('div');d.style.marginTop='10px';
+    d.innerHTML='<span class="pill live">Already submitted ✓</span>';
+    box.appendChild(d);
+  }
+}
+function submitBtn(box){
+  const b=document.createElement('button');
+  b.textContent='Submit';b.style.marginTop='12px';
+  b.onclick=()=>submitActiveGame(false);
+  box.appendChild(b);return b;
+}
+function speedBonus(round){ const frac=round.duration? remaining()/round.duration : 0;
+  return 60+Math.round(40*clamp(frac,0,1)); }
+
+// 1) Copy the Paragraph — retype it; score = how many WORDS match the original
+// (order-preserving longest common subsequence, so one typo doesn't cascade).
+function lcsWordMatch(typed,target){
+  // returns the set of target-word indices matched, in order
+  const m=typed.length,n=target.length;
+  const dp=Array.from({length:m+1},()=>new Int16Array(n+1));
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)
+    dp[i][j]= typed[i-1]===target[j-1] ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j],dp[i][j-1]);
+  const set=new Set(); let i=m,j=n;
+  while(i>0&&j>0){
+    if(typed[i-1]===target[j-1]){ set.add(j-1); i--; j--; }
+    else if(dp[i-1][j]>=dp[i][j-1]) i--; else j--;
+  }
+  return set;
+}
+function gameCopy(box,round){
+  const pool=round.texts||['The quick brown fox jumps over the lazy dog.'];
+  // Same paragraph for everyone this round (seeded by the shared start time).
+  const target=pool[Math.floor(mulberry32((G.tStart||1)+7)()*pool.length)];
+  const tWords=target.split(/\s+/).filter(Boolean);
+  box.innerHTML=`
+    <div class="copytarget" id="tgt"></div>
+    <textarea id="cp" placeholder="Type the paragraph here…" spellcheck="false"
+      autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+    <div class="row" style="justify-content:space-between;margin-top:6px">
+      <span class="muted" id="cst">0 / ${tWords.length} words matched</span>
+      <span class="ptsbadge" id="cpts" data-v="0">⭐ 0 pts</span></div>`;
+  const tgt=$('#tgt',box), ta=$('#cp',box), st=$('#cst',box), pb=$('#cpts',box);
+  tgt.innerHTML=tWords.map((w,i)=>`<span data-i="${i}">${esc(w)}</span>`).join(' ');
+  const spans=tgt.querySelectorAll('span');
+  function matchedSet(){
+    const typedW=ta.value.trim()?ta.value.trim().split(/\s+/):[];
+    return lcsWordMatch(typedW,tWords);
+  }
+  function update(){
+    const set=matchedSet();
+    spans.forEach((s,i)=>{ s.className=set.has(i)?'ok':''; });
+    st.textContent=`${set.size} / ${tWords.length} words matched`;
+    const score=Math.round(set.size/tWords.length*100), old=+pb.dataset.v||0;
+    pb.textContent='⭐ '+score+' pts'; pb.dataset.v=score;
+    if(score>old){ pb.classList.remove('pulse'); void pb.offsetWidth; pb.classList.add('pulse'); }
+    if(set.size===tWords.length){ sndGood(); confetti(60); st.textContent='Whole paragraph matched! Submitting…';
+      setTimeout(()=>submitActiveGame(false),400); }
+  }
+  // Strict anti-cheat: block paste/drop/right-click, and reject any bulk insert
+  // (a jump of many characters at once) that slips past the paste event.
+  let lastVal='';
+  const warn=()=>{ st.textContent='⛔ No copy-paste — type it yourself!'; st.style.color='var(--red)';
+    setTimeout(()=>{st.style.color='';},1500); sndBad(); };
+  ta.addEventListener('input',()=>{
+    if(ta.value.length-lastVal.length>15){ ta.value=lastVal; warn(); return; }
+    lastVal=ta.value; update();
+  });
+  const block=e=>{ e.preventDefault(); warn(); };
+  ta.addEventListener('paste',block);
+  ta.addEventListener('drop',block);
+  ta.addEventListener('contextmenu',e=>e.preventDefault());
+  update();
+  submitBtn(box);
+  activeGame.finalize=()=>{
+    const matched=matchedSet().size;
+    const score=Math.round(matched/tWords.length*100);
+    return {score, display:`${matched}/${tWords.length} words (${score}%)`};
+  };
+}
+function gameText(box,round){
+  box.innerHTML=`<div class="big center" style="letter-spacing:6px;margin:10px 0">${esc(round.puzzle)}</div>
+    <input id="ans" placeholder="Your answer" autocomplete="off"/>
+    <p class="muted" style="font-size:12px;margin-top:6px">Hint: ${esc(round.hint||'')}</p>`;
+  const inp=$('#ans',box);
+  submitBtn(box);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')submitActiveGame(false);});
+  activeGame.finalize=()=>{const correct=norm(inp.value)===norm(round.answer);
+    return {score:correct?speedBonus(round):0, display:(correct?'✓ ':'✗ ')+'"'+inp.value+'"'};};
+}
+// 5) Word Scramble — unscramble as many words as you can before time runs out.
+function scramble(w,rnd){
+  if(w.length<2) return w;
+  let a;
+  for(let t=0;t<25;t++){ a=w.split('');
+    for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+    if(a.join('')!==w) break; }
+  return a.join('');
+}
+function gameScramble(box,round){
+  const words=(round.words||[]).slice(0,10).map(w=>w.toUpperCase());
+  const rnd=mulberry32((G.tStart||1)+3);
+  const scrambled=words.map(w=>scramble(w,rnd));
+  let idx=0, solved=0;
+  box.innerHTML=`
+    <div class="row" style="justify-content:space-between">
+      <span class="muted" id="sprog"></span><span class="ptsbadge" id="spts" data-v="0">⭐ 0 pts</span></div>
+    <div class="big center" id="sword" style="letter-spacing:8px;margin:16px 0"></div>
+    <input id="sans" placeholder="Type the word…" autocomplete="off" autocapitalize="characters" spellcheck="false"/>
+    <div class="row" style="margin-top:10px">
+      <button id="sskip" class="ghost">Skip ▶</button>
+      <span class="muted" id="smsg"></span></div>`;
+  const wEl=$('#sword',box), inp=$('#sans',box), prog=$('#sprog',box), pb=$('#spts',box), msg=$('#smsg',box), skip=$('#sskip',box);
+  function paint(){
+    const score=Math.round(solved/words.length*100), old=+pb.dataset.v||0;
+    pb.textContent='⭐ '+score+' pts'; pb.dataset.v=score;
+    if(score>old){pb.classList.remove('pulse');void pb.offsetWidth;pb.classList.add('pulse');}
+    if(idx>=words.length){ wEl.textContent='All done! 🎉'; inp.disabled=true; skip.disabled=true;
+      prog.textContent='solved '+solved+' / '+words.length; msg.textContent='Submitting…';
+      setTimeout(()=>submitActiveGame(false),350); return; }
+    wEl.textContent=scrambled[idx]; prog.textContent='Word '+(idx+1)+' / '+words.length+' · solved '+solved;
+    inp.value=''; inp.focus();
+  }
+  function check(){
+    if(norm(inp.value)===words[idx]){ solved++; sndGood(); beep(1050,.06); msg.textContent='✓ correct!'; idx++; paint(); }
+    else { msg.textContent='Not quite — try again or Skip.'; inp.select(); }
+  }
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();check();}});
+  skip.onclick=()=>{ idx++; msg.textContent=''; paint(); };
+  submitBtn(box);
+  paint();
+  activeGame.finalize=()=>({score:Math.round(solved/words.length*100), display:solved+'/'+words.length+' words'});
+}
+// 6) Team Brainstorm — the whole team fills ONE shared list; team-scored.
+function gameBrainstorm(box,round){
+  const teamId=(teamOf(MY.pid)||{}).id;
+  activeGame.submitted=true;               // collaborative: no per-person submit / no timeout-submit
+  activeGame.finalize=()=>({});
+  if(!teamId){ box.innerHTML='<p class="muted">Waiting to be put on a team…</p>'; return; }
+  box.innerHTML=`
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div><b>Category:</b> ${esc(round.category)}</div>
+      <span class="ptsbadge" id="bspts" data-v="0">⭐ 0 pts</span></div>
+    <div class="row" style="margin-top:10px;gap:6px">
+      <input id="bsin" placeholder="Add an answer…" autocomplete="off" style="flex:1"/>
+      <button id="bsadd">Add</button></div>
+    <div class="muted" style="font-size:12px;margin-top:4px">Tip: use team chat to divide up the category and avoid repeats!</div>
+    <h4 style="margin:14px 0 6px">Team's answers (<span id="bscount">0</span>)</h4>
+    <div id="bslist" class="bslist"></div>`;
+  const inp=$('#bsin',box);
+  async function add(){ const v=inp.value.trim(); if(!v) return; inp.value=''; inp.focus();
+    await apiSet('bs:'+G.roundIndex+':'+teamId+':'+norm(v), {text:v, pid:MY.pid, name:MY.name, ts:serverNow()});
+    poll(); }
+  $('#bsadd',box).onclick=add;
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();add();}});
+  refreshBrainstorm();
+}
+// Refresh the shared list + team points live (called on each poll during play).
+function refreshBrainstorm(){
+  const list=document.getElementById('bslist'); if(!list) return;
+  const r=G.roundIndex, round=ROUNDS[r], teamId=(teamOf(MY.pid)||{}).id; if(!teamId) return;
+  const acc=new Set((round.accept||[]).map(norm));
+  const entries=bsEntries(teamId,r); let accepted=0;
+  list.innerHTML = entries.length ? entries.map(e=>{ if(acc.has(norm(e.text))) accepted++;
+    return `<span class="bschip">${esc(e.text)} <small class="muted">· ${esc(e.name)}</small></span>`; }).join('')
+    : '<span class="muted">No answers yet — start typing!</span>';
+  const cnt=document.getElementById('bscount'); if(cnt) cnt.textContent=entries.length;
+  const score=Math.min(round.max||100, Math.round(accepted/(round.target||10)*(round.max||100)));
+  const pb=document.getElementById('bspts');
+  if(pb){ const old=+pb.dataset.v||0; pb.dataset.v=score; pb.textContent='⭐ '+score+' pts';
+    if(score>old){pb.classList.remove('pulse');void pb.offsetWidth;pb.classList.add('pulse');} }
+}
+// 6) Code Breakers — code length = team size; each member solves a RIDDLE for
+// their digit; each team gets a different shuffled assignment.
+const RIDDLES=[
+  {text:'The only even prime number.', a:'2'},
+  {text:'How many bits are in a byte?', a:'8'},
+  {text:'The number of sides on a triangle.', a:'3'},
+  {text:'How many fingers are on one hand?', a:'5'},
+  {text:'Half of twelve.', a:'6'},
+  {text:'The number of days in a week.', a:'7'},
+  {text:'The square root of eighty-one.', a:'9'},
+  {text:'The additive identity — the number that adds to nothing.', a:'0'},
+  {text:'The multiplicative identity — times it and nothing changes.', a:'1'},
+  {text:'Two squared.', a:'4'},
+  {text:'Binary 110 in decimal.', a:'6'},
+  {text:'Binary 101 in decimal.', a:'5'},
+  {text:'The cube root of twenty-seven.', a:'3'},
+  {text:'The number of sides on an octagon.', a:'8'},
+  {text:'A perfect ten, minus one.', a:'9'},
+  {text:'Wheels on a tricycle.', a:'3'},
+  {text:'Hexadecimal F, minus ten (in decimal).', a:'5'},
+  {text:'Thirteen minus twelve.', a:'1'},
+  {text:'The number of bits in a nibble.', a:'4'},
+  {text:'How many legs does a spider have?', a:'8'},
+  {text:'A pair — this many in a duo.', a:'2'},
+  {text:'The number of strikes to strike out in baseball.', a:'3'}
+];
+function hashStr(s){ let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return h; }
+// Deterministic per-team riddle assignment (shuffled differently for each team).
+function cbAssign(round,t){
+  const members=teamMembers(t); const N=Math.max(1,members.length);
+  const rnd=mulberry32((Math.floor(G.tStart||1))+hashStr(t.id)*7+3);
+  const idx=[...Array(RIDDLES.length).keys()];
+  for(let i=idx.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]];}
+  const chosen=[]; for(let i=0;i<N;i++) chosen.push(RIDDLES[idx[i%idx.length]]);
+  return {members, chosen, code:chosen.map(r=>r.a).join(''), N};
+}
+function gameCodebreak(box,round){
+  const t=teamOf(MY.pid);
+  activeGame.submitted=true; activeGame.finalize=()=>({});   // team-scored, custom submit
+  if(!t){ box.innerHTML='<p class="muted">Waiting to be put on a team…</p>'; return; }
+  const {members,chosen,code,N}=cbAssign(round,t);
+  const myIndex=members.findIndex(m=>m.pid===MY.pid);
+  const myRiddle=myIndex>=0?chosen[myIndex]:null;
+  box.innerHTML=`
+    <div class="cbclue">
+      <div class="hlbl">🧩 You are digit #${myIndex+1} of ${N} — solve your riddle</div>
+      <div style="font-size:16px;margin-top:8px">${myRiddle?esc(myRiddle.text):'Help your team coordinate in chat!'}</div>
+      <div class="muted" style="font-size:12px;margin-top:6px">Work out your digit (0–9) and tell your team: “digit #${myIndex+1} = ?”</div>
+    </div>
+    <p class="muted" style="font-size:12px;margin-top:10px">Combine everyone's digits in order, then anyone enters the ${N}-digit code:</p>
+    <div class="row" style="gap:6px">
+      <input id="cbin" inputmode="numeric" maxlength="${N}" placeholder="${'•'.repeat(N)}"
+        style="flex:1;letter-spacing:8px;font-size:22px;text-align:center"/>
+      <button id="cbtry" class="ok">🔓 Unlock</button></div>
+    <div id="cbstatus" style="margin-top:10px"></div>`;
+  const inp=$('#cbin',box), st=$('#cbstatus',box);
+  async function tryCode(){
+    const cur=STORE['cb:'+G.roundIndex+':'+t.id]; if(cur&&cur.solved) return;
+    const v=inp.value.trim();
+    if(v.length!==code.length){ st.innerHTML=`<span class="muted">Enter all ${code.length} digits.</span>`; return; }
+    if(v===code){ const frac=round.duration?remaining()/round.duration:0;
+      const score=Math.min(round.max||100, 60+Math.round(40*clamp(frac,0,1)));
+      await apiSet('cb:'+G.roundIndex+':'+t.id,{solved:true, code:v, by:MY.name, score, ts:serverNow()});
+      sndAward(); confetti(90); poll();
+    } else { st.innerHTML=`<span style="color:var(--red)">❌ ${esc(v)} isn't right — keep combining clues!</span>`; sndBad(); }
+  }
+  $('#cbtry',box).onclick=tryCode;
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();tryCode();}});
+  refreshCodebreak();
+}
+function refreshCodebreak(){
+  const st=document.getElementById('cbstatus'); if(!st) return;
+  const t=teamOf(MY.pid); if(!t) return;
+  const cb=STORE['cb:'+G.roundIndex+':'+t.id];
+  if(cb&&cb.solved){
+    st.innerHTML=`<span class="pill live">🔓 UNLOCKED by ${esc(cb.by)} — +${cb.score} pts!</span>`;
+    const inp=document.getElementById('cbin'), btn=document.getElementById('cbtry');
+    if(inp){ inp.disabled=true; inp.value=cb.code; } if(btn) btn.disabled=true;
+  }
+}
+// 7) Team Relay Quiz — questions auto-advance every RELAY_PER seconds, in sync
+// for the whole team (driven by the shared start time). Anyone answers the
+// CURRENT question; it locks + shows green/red + who answered, on everyone's screen.
+const RELAY_PER=20; // seconds shown per question (auto-advance)
+function relayCurrent(r){ const total=(ROUNDS[r].questions||[]).length;
+  if(!G.tStart||G.phase!=='playing') return 0;
+  return clamp(Math.floor((serverNow()-G.tStart)/(RELAY_PER*1000)),0,total-1); }
+function relaySecLeft(){ if(!G.tStart) return RELAY_PER;
+  const e=(serverNow()-G.tStart)/1000; return clamp(RELAY_PER-Math.floor(e%RELAY_PER),0,RELAY_PER); }
+function relaySig(t,r){ const cur=relayCurrent(r); const a=STORE['rq:'+r+':'+t.id+':'+cur];
+  return cur+'|'+(a?a.choice:'-'); }
+function gameRelay(box,round){
+  const t=teamOf(MY.pid); activeGame.submitted=true; activeGame.finalize=()=>({});
+  if(!t){ box.innerHTML='<p class="muted">Waiting to be put on a team…</p>'; return; }
+  box.innerHTML='<div id="relaybox"></div>';
+  renderRelay();
+}
+function renderRelay(){
+  const box=document.getElementById('relaybox'); if(!box) return;
+  const r=G.roundIndex, round=ROUNDS[r], t=teamOf(MY.pid); if(!t) return;
+  const qs=round.questions||[], total=qs.length, cur=relayCurrent(r);
+  const q=qs[cur], ans=STORE['rq:'+r+':'+t.id+':'+cur];
+  let answered=0; for(let i=0;i<total;i++) if(STORE['rq:'+r+':'+t.id+':'+i]) answered++;
+  box.dataset.cur=cur; box.dataset.sig=relaySig(t,r);
+  const opts=q.options.map((o,i)=>{ let cls='opt reopt';
+    if(ans){ if(i===q.answerIndex) cls+=' correct'; else if(i===ans.choice) cls+=' wrong'; }
+    return `<button class="${cls}" data-i="${i}"${ans?' disabled':''}>${esc(o)}</button>`; }).join('');
+  box.innerHTML=`
+    <div class="row" style="justify-content:space-between">
+      <span class="muted">Question ${cur+1} / ${total} · ${answered} answered</span>
+      <span class="ptsbadge">⏱ <span id="rqtime">${relaySecLeft()}</span>s</span></div>
+    ${q.cat?`<div class="pill" style="margin-top:8px">${esc(q.cat)}</div>`:''}
+    <h3 style="margin:10px 0 ${q.code?'8':'12'}px">${esc(q.q)}</h3>
+    ${q.code?`<pre class="code">${esc(q.code)}</pre>`:''}
+    ${opts}
+    ${ans
+      ? `<div class="muted" style="margin-top:8px">${ans.choice===q.answerIndex?'✅ Correct':'❌ Wrong'} — answered by <b>${esc(ans.by)}</b></div>`
+      : `<div class="muted" style="font-size:12px;margin-top:6px">Discuss in team chat, then anyone taps the answer — it locks for everyone. Auto-advances every ${RELAY_PER}s.</div>`}`;
+  if(!ans) box.querySelectorAll('.reopt').forEach(b=>b.onclick=async()=>{
+    if(STORE['rq:'+r+':'+t.id+':'+cur] || relayCurrent(r)!==cur) return;  // locked, or window passed
+    box.querySelectorAll('.reopt').forEach(x=>x.disabled=true);
+    const choice=+b.dataset.i;
+    await apiSet('rq:'+r+':'+t.id+':'+cur,{choice, by:MY.name, ts:serverNow()});
+    (choice===q.answerIndex)?sndGood():sndBad();
+    await poll();
+  });
+}
+function refreshRelay(){                       // called on poll (~2s): reflect teammates' answers
+  const box=document.getElementById('relaybox'); if(!box) return;
+  const t=teamOf(MY.pid); if(!t) return;
+  if(box.dataset.sig!==relaySig(t,G.roundIndex)) renderRelay();
+}
+function relayTick(){                          // called on 250ms timer: crisp auto-advance + countdown
+  const box=document.getElementById('relaybox'); if(!box) return;
+  if(String(relayCurrent(G.roundIndex))!==box.dataset.cur){ renderRelay(); return; }
+  const el=document.getElementById('rqtime'); if(el) el.textContent=relaySecLeft();
+}
+// 11) Team Emoji Decode — 10 shared emoji puzzles; anyone locks an answer.
+function emCorrect(p,a){ return a && (p.accept||[]).map(norm).includes(norm(a.text)); }
+function gameEmoji(box,round){
+  const t=teamOf(MY.pid); activeGame.submitted=true; activeGame.finalize=()=>({});
+  if(!t){ box.innerHTML='<p class="muted">Waiting to be put on a team…</p>'; return; }
+  box.innerHTML=`
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <span class="muted">Decode all 10 with your team — use team chat!</span>
+      <span class="ptsbadge" id="empts" data-v="0">⭐ 0 pts</span></div>
+    <div class="emgrid" id="emgrid"></div>`;
+  renderEmoji();
+}
+function renderEmoji(){
+  const grid=document.getElementById('emgrid'); if(!grid) return;
+  const r=G.roundIndex, round=ROUNDS[r], t=teamOf(MY.pid); if(!t) return;
+  const pz=round.puzzles||[]; let solved=0;
+  grid.innerHTML=pz.map((p,i)=>{ const a=STORE['em:'+r+':'+t.id+':'+i], ok=emCorrect(p,a); if(ok)solved++;
+    return `<div class="emcard${ok?' solved':''}">
+      <div class="ememoji">${esc(p.e)}</div>
+      ${ok
+        ? `<div class="emok">✓ ${esc((p.accept||[])[0])}<div class="muted" style="font-size:11px">by ${esc(a.by)}</div></div>`
+        : `<div class="row" style="gap:6px"><input class="eminput" data-i="${i}" placeholder="Guess…" autocomplete="off" style="flex:1"/><button class="emguess" data-i="${i}">Go</button></div>`}
+    </div>`; }).join('');
+  const s=Math.round(solved/pz.length*(round.max||100)); grid.dataset.solved=solved;
+  const pb=document.getElementById('empts');
+  if(pb){ const old=+pb.dataset.v||0; pb.dataset.v=s; pb.textContent='⭐ '+s+' pts';
+    if(s>old){pb.classList.remove('pulse');void pb.offsetWidth;pb.classList.add('pulse');} }
+  grid.querySelectorAll('.emguess').forEach(b=>b.onclick=()=>emSubmit(+b.dataset.i));
+  grid.querySelectorAll('.eminput').forEach(inp=>inp.addEventListener('keydown',
+    e=>{ if(e.key==='Enter'){ e.preventDefault(); emSubmit(+inp.dataset.i); } }));
+}
+async function emSubmit(i){
+  const grid=document.getElementById('emgrid'); if(!grid) return;
+  const inp=grid.querySelector('.eminput[data-i="'+i+'"]'); if(!inp) return;
+  const v=inp.value.trim(); if(!v) return;
+  const r=G.roundIndex, t=teamOf(MY.pid), p=ROUNDS[r].puzzles[i];
+  const ok=(p.accept||[]).map(norm).includes(norm(v));
+  if(ok){ await apiSet('em:'+r+':'+t.id+':'+i,{text:v, by:MY.name, ts:serverNow()});
+    sndGood(); confetti(24); await poll(); renderEmoji(); }
+  else { sndBad(); inp.style.borderColor='var(--red)';
+    const card=inp.closest('.emcard'); let n=card.querySelector('.emnote');
+    if(!n){ n=document.createElement('div'); n.className='emnote';
+      n.style.cssText='font-size:11px;margin-top:4px;color:var(--red)'; card.appendChild(n); }
+    n.textContent='✗ not quite — try again'; inp.select(); }
+}
+function refreshEmoji(){
+  const grid=document.getElementById('emgrid'); if(!grid) return;
+  const ae=document.activeElement;
+  if(ae && ae.classList && ae.classList.contains('eminput')) return;   // don't clobber typing
+  const t=teamOf(MY.pid); if(!t) return; const r=G.roundIndex, pz=ROUNDS[r].puzzles||[];
+  let solved=0; for(let i=0;i<pz.length;i++) if(emCorrect(pz[i],STORE['em:'+r+':'+t.id+':'+i])) solved++;
+  if(String(solved)!==grid.dataset.solved) renderEmoji();
+}
+function gameQuiz(box,round){
+  let sel=-1;
+  const codeHTML=round.code?`<pre class="code">${esc(round.code)}</pre>`:'';
+  box.innerHTML=codeHTML+round.options.map((o,i)=>`<button class="opt" data-i="${i}">${esc(o)}</button>`).join('');
+  box.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{
+    sel=+b.dataset.i;box.querySelectorAll('.opt').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');});
+  submitBtn(box);
+  activeGame.finalize=()=>{const correct=sel===round.answerIndex;
+    return {score:sel<0?0:(correct?speedBonus(round):0),
+      display:sel<0?'no answer':(correct?'✓ correct':'✗ chose "'+round.options[sel]+'"')};};
+}
+function gameBughunt(box,round){
+  let sel=-1;
+  const code=round.lines.map((l,i)=>`<div>${i+1}. ${esc(l)}</div>`).join('');
+  box.innerHTML=`<pre class="code">${code}</pre>
+    <div class="qbtns" id="qb">${round.lines.map((l,i)=>
+      `<button class="opt" style="width:auto;display:inline-block" data-i="${i+1}">Line ${i+1}</button>`).join('')}</div>`;
+  box.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{
+    sel=+b.dataset.i;box.querySelectorAll('.opt').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');});
+  submitBtn(box);
+  activeGame.finalize=()=>{const correct=sel===round.answerLine;
+    return {score:sel<0?0:(correct?speedBonus(round):0),
+      display:sel<0?'no answer':(correct?'✓ line '+sel:'✗ line '+sel)};};
+}
+function runTests(code,fnName,tests){
+  let fn;
+  try{ fn=new Function(code+'\n;return '+fnName+';')(); }
+  catch(e){ return {passed:0,total:tests.length,err:String(e.message),results:[]}; }
+  if(typeof fn!=='function') return {passed:0,total:tests.length,err:fnName+' is not defined',results:[]};
+  let passed=0; const results=[];
+  for(const t of tests){ let got, err=null, pass=false;
+    try{ got=fn.apply(null,JSON.parse(JSON.stringify(t.args)));
+      pass=JSON.stringify(got)===JSON.stringify(t.expected); }
+    catch(e){ err=e.message; }
+    if(pass) passed++;
+    results.push({args:t.args, expected:t.expected, got, err, pass});
+  }
+  return {passed,total:tests.length,results};
+}
+function gameCode(box,round){
+  box.innerHTML=`<textarea id="cd" style="min-height:180px;font-family:ui-monospace,Consolas,monospace">${esc(round.starter)}</textarea>
+    <div class="row" style="margin-top:10px"><button class="ghost" id="run">▶ Run tests</button></div>
+    <div id="tr" class="muted" style="margin-top:8px"></div>`;
+  const ta=$('#cd',box),tr=$('#tr',box);
+  const callStr=(a)=>round.functionName+'('+JSON.stringify(a).slice(1,-1)+')';
+  const show=(r)=>{
+    if(r.err){ tr.innerHTML=`<b style="color:var(--red)">Error: ${esc(r.err)}</b>`; return; }
+    const fails=r.results.filter(x=>!x.pass);
+    let html=`<b style="color:${r.passed===r.total?'var(--green)':'var(--red)'}">${r.passed}/${r.total} tests passing</b>`;
+    if(fails.length){
+      html+='<div class="testfails">'+fails.slice(0,4).map(f=>
+        `<div>✗ <code>${esc(callStr(f.args))}</code> → got <b>${esc(f.err?('⚠ '+f.err):JSON.stringify(f.got))}</b>, expected <b>${esc(JSON.stringify(f.expected))}</b></div>`).join('')
+        +(fails.length>4?`<div class="muted">…and ${fails.length-4} more</div>`:'')+'</div>';
+    }
+    tr.innerHTML=html;
+  };
+  $('#run',box).onclick=()=>show(runTests(ta.value,round.functionName,round.tests));
+  submitBtn(box);
+  activeGame.finalize=()=>{const r=runTests(ta.value,round.functionName,round.tests);
+    return {score:Math.round(r.passed/r.total*round.max),display:`${r.passed}/${r.total} tests`+(r.err?(' — '+r.err):'')};};
+}
+// 2) Maze Runner — fog of war + collect all coins + progressive levels.
+function gameMaze(box,round){
+  const REVEAL=4;                    // fog radius (grid units)
+  let level=0, pts=0, coinsGot=0, cleared=0;
+  let grid,start,end,pos,W,H,coins,seen;
+  box.innerHTML=`
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div class="muted" id="ms"></div><div class="ptsbadge" id="mp" data-v="0">⭐ 0 pts</div></div>
+    <div class="maze" id="mz"></div>
+    <div class="dpad"><span></span><button data-d="up">▲</button><span></span>
+      <button data-d="left">◀</button><span></span><button data-d="right">▶</button>
+      <span></span><button data-d="down">▼</button><span></span></div>`;
+  const mz=$('#mz',box), ms=$('#ms',box), mp=$('#mp',box);
+
+  function spec(l){ return { cols:Math.min((round.cols||10)+l*2,15), rows:Math.min((round.rows||7)+l,10), ncoins:Math.min(3+l,8) }; }
+  function loadLevel(){
+    const s=spec(level);
+    const seed=Math.floor(G.tStart||1)+level*1009+round.id.length;
+    const m=genMaze(s.cols,s.rows,seed); grid=m.grid; start=m.start; end=m.end;
+    H=grid.length; W=grid[0].length; pos=[start[0],start[1]];
+    // Braid the maze: open ~18% of interior walls to add extra paths & loops.
+    const brnd=mulberry32(seed+999);
+    for(let r=1;r<H-1;r++)for(let c=1;c<W-1;c++)
+      if(grid[r][c]===1 && ((r%2===1&&c%2===0)||(r%2===0&&c%2===1)) && brnd()<0.18) grid[r][c]=0;
+    // Coins go ONLY on cell-centres (odd,odd) — the cells the player can land on —
+    // so every coin is always reachable.
+    const rnd=mulberry32(seed+55), paths=[];
+    for(let r=1;r<H;r+=2)for(let c=1;c<W;c+=2)
+      if(!(r===start[0]&&c===start[1]) && !(r===end[0]&&c===end[1])) paths.push(r+','+c);
+    for(let i=paths.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[paths[i],paths[j]]=[paths[j],paths[i]];}
+    coins=new Set(paths.slice(0,s.ncoins));
+    seen=new Set(); revealNear(); draw();
+  }
+  function revealNear(){
+    for(let dr=-REVEAL;dr<=REVEAL;dr++)for(let dc=-REVEAL;dc<=REVEAL;dc++){
+      const r=pos[0]+dr,c=pos[1]+dc; if(r>=0&&r<H&&c>=0&&c<W) seen.add(r+','+c); }
+  }
+  function draw(){
+    mz.style.gridTemplateColumns=`repeat(${W},20px)`; mz.innerHTML='';
+    for(let r=0;r<H;r++)for(let c=0;c<W;c++){
+      const d=document.createElement('div'); d.className='mcell'; const key=r+','+c;
+      if(!seen.has(key)){ d.classList.add('fog'); mz.appendChild(d); continue; }
+      if(r===pos[0]&&c===pos[1]) d.classList.add('you');
+      else if(coins.has(key)) d.classList.add('coin');
+      else if(r===end[0]&&c===end[1]) d.classList.add(coins.size?'elock':'e');
+      else if(r===start[0]&&c===start[1]) d.classList.add('s');
+      else d.classList.add(grid[r][c]?'w':'p');
+      mz.appendChild(d);
+    }
+    ms.textContent=`Level ${level+1} · coins left: ${coins.size}`;
+    const cur=Math.min(100,pts), old=+mp.dataset.v||0;
+    mp.textContent='⭐ '+cur+' pts'; mp.dataset.v=cur;
+    if(cur>old){ mp.classList.remove('pulse'); void mp.offsetWidth; mp.classList.add('pulse'); }
+  }
+  function move(dr,dc){
+    const wr=pos[0]+dr,wc=pos[1]+dc,nr=pos[0]+dr*2,nc=pos[1]+dc*2;
+    if(nr<0||nr>=H||nc<0||nc>=W||grid[wr][wc]===1) return;
+    pos=[nr,nc]; beep(520,.04,'square',.05); const key=nr+','+nc;
+    if(coins.has(key)){ coins.delete(key); pts+=5; coinsGot++; beep(1200,.07); }
+    revealNear();
+    if(nr===end[0]&&nc===end[1]){
+      if(coins.size===0){ cleared++; pts+=20; confetti(50); sndAward();
+        level++; ms.textContent='Level cleared! Loading next…'; setTimeout(loadLevel,450); return; }
+      ms.textContent='Locked! Collect every coin first.'; beep(180,.12,'sawtooth');
+    }
+    draw();
+  }
+  const keyh=e=>{const m={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]}[e.key];
+    if(m){e.preventDefault();move(m[0],m[1]);}};
+  addEventListener('keydown',keyh);
+  box.querySelectorAll('.dpad button').forEach(b=>b.onclick=()=>{
+    const m={up:[-1,0],down:[1,0],left:[0,-1],right:[0,1]}[b.dataset.d];move(m[0],m[1]);});
+  loadLevel();
+  activeGame.cleanup=()=>removeEventListener('keydown',keyh);
+  activeGame.finalize=()=>({score:clamp(Math.min(100,pts),0,100),
+    display:`${cleared} level${cleared===1?'':'s'} cleared, ${coinsGot} coins`});
+}
+function gameTyping(box,round){
+  box.innerHTML=`<div class="card" style="background:var(--bg2)">${esc(round.text)}</div>
+    <textarea id="tp" placeholder="Start typing..."></textarea>
+    <div class="muted" id="tstat" style="margin-top:6px">WPM 0 · Acc 0%</div>`;
+  const ta=$('#tp',box),st=$('#tstat',box);let started=0;
+  function stats(){ if(!started&&ta.value)started=serverNow();
+    const target=round.text,typed=ta.value;
+    let correct=0;for(let i=0;i<typed.length;i++)if(typed[i]===target[i])correct++;
+    const acc=typed.length?correct/typed.length:0;
+    const mins=started?Math.max((serverNow()-started)/60000,1/60):1/60;
+    const wpm=(typed.length/5)/mins;
+    st.textContent=`WPM ${Math.round(wpm)} · Acc ${Math.round(acc*100)}%`;return {acc,wpm};}
+  ta.addEventListener('input',stats);
+  submitBtn(box);
+  activeGame.finalize=()=>{const {acc,wpm}=stats();
+    return {score:clamp(Math.round(acc*acc*100*clamp(wpm/45,.2,1)),0,100),
+      display:`${Math.round(wpm)} WPM, ${Math.round(acc*100)}% acc`};};
+}
+function gameMemory(box,round){
+  const CS=['#ff5470','#ff9f43','#ffd257','#37d67a','#2fd4c9','#4f7cf0','#7c5bff','#e05be0','#ff6b9d'];
+  box.innerHTML=`
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <span class="pill" id="mlvl">Level 1</span>
+      <span class="ptsbadge" id="mpts" data-v="0">⭐ 0 pts</span></div>
+    <div class="center" id="mstat" style="margin:10px 0;font-weight:700;min-height:22px">Get ready…</div>
+    <div class="mtiles watch" id="tiles">${CS.map((c,i)=>`<div class="mtile" data-i="${i}" style="background:${c};color:${c}"></div>`).join('')}</div>
+    <div class="center" id="mdots" style="margin-top:10px;letter-spacing:5px;color:var(--muted)"></div>`;
+  const tilesEl=box.querySelectorAll('.mtile'),st=$('#mstat',box),grid=$('#tiles',box),
+        lvl=$('#mlvl',box),pts=$('#mpts',box),dots=$('#mdots',box);
+  let seq=[],input=[],level=0,accepting=false,best=0;
+  const rnd=()=>Math.floor(Math.random()*9);
+  function setPts(){ const s=clamp(level*12,0,100),old=+pts.dataset.v||0; pts.dataset.v=s;
+    pts.textContent='⭐ '+s+' pts'; if(s>old){pts.classList.remove('pulse');void pts.offsetWidth;pts.classList.add('pulse');} }
+  function drawDots(){ dots.textContent=seq.map((_,i)=>i<input.length?'●':'○').join(' '); }
+  function light(i,ms=430){ return new Promise(r=>{ tilesEl[i].classList.add('on'); beep(320+i*55,.16);
+    setTimeout(()=>{ tilesEl[i].classList.remove('on'); setTimeout(r,150); },ms); }); }
+  async function play(){ accepting=false; grid.classList.add('watch');
+    st.textContent='👀 Watch the pattern…'; input=[]; drawDots();
+    await new Promise(r=>setTimeout(r,500));
+    for(const i of seq) await light(i);
+    accepting=true; grid.classList.remove('watch'); st.textContent='🫵 Your turn — repeat it!'; }
+  function next(){ level++; best=level-1; lvl.textContent='Level '+level; setPts(); seq.push(rnd()); play(); }
+  tilesEl.forEach(t=>t.onclick=()=>{ if(!accepting)return; const i=+t.dataset.i;
+    tilesEl[i].classList.add('on'); beep(320+i*55,.12); setTimeout(()=>tilesEl[i].classList.remove('on'),160);
+    input.push(i); drawDots(); const k=input.length-1;
+    if(input[k]!==seq[k]){ accepting=false; best=level-1; sndBad(); grid.classList.add('watch');
+      st.innerHTML='❌ Wrong! Reached <b>level '+best+'</b> — submitting…'; setTimeout(()=>submitActiveGame(false),750); return; }
+    if(input.length===seq.length){ accepting=false; best=level; sndGood(); confetti(30);
+      st.innerHTML='✅ Level '+level+' cleared!'; setTimeout(next,800); } });
+  setTimeout(next,600);
+  activeGame.finalize=()=>({score:clamp(best*12,0,100),display:'reached level '+best});
+}
+function gameReaction(box,round){
+  box.innerHTML=`<div class="reactbox" id="rb" style="background:var(--red)">Wait…</div>
+    <div class="muted center" id="rstat" style="margin-top:8px">Attempt 1 of 3</div>`;
+  const rb=$('#rb',box),st=$('#rstat',box);
+  let attempt=0,times=[],green=false,greenAt=0,tmo=null,done=false;
+  function arm(){green=false;rb.style.background='var(--red)';rb.textContent='Wait for GREEN…';
+    tmo=setTimeout(()=>{green=true;greenAt=performance.now();rb.style.background='var(--green)';rb.textContent='TAP!';},900+Math.random()*2200);}
+  rb.onclick=()=>{ if(done)return;
+    if(!green){ if(tmo)clearTimeout(tmo);rb.textContent='Too soon! resetting…';beep(160,.15,'sawtooth');setTimeout(arm,700);return;}
+    const ms=Math.round(performance.now()-greenAt);times.push(ms);attempt++;beep(880,.08);
+    if(attempt>=3){done=true;const avg=Math.round(times.reduce((a,b)=>a+b,0)/times.length);
+      rb.style.background='var(--panel2)';rb.textContent='Avg '+avg+'ms';
+      st.textContent='Done! '+times.join('ms, ')+'ms';setTimeout(()=>submitActiveGame(false),500);}
+    else{st.textContent='Attempt '+(attempt+1)+' of 3 · last '+ms+'ms';arm();}};
+  arm();
+  activeGame.finalize=()=>{ if(!times.length) return {score:0,display:'no taps'};
+    const avg=times.reduce((a,b)=>a+b,0)/times.length;
+    return {score:clamp(Math.round(100-(avg-180)/6),0,100),display:Math.round(avg)+'ms avg'};};
+}
+function gameLogo(box,round){
+  const set=logoSet();
+  if(!set.length){ box.innerHTML='<p class="muted">The host hasn’t added any logos yet. Hang tight…</p>';
+    activeGame.finalize=()=>({score:0,display:'no logos configured'}); return; }
+  box.innerHTML=`<div class="logogrid">${set.map((it,i)=>
+    `<div class="logocard"><img src="${esc(it.url)}" alt="logo ${i+1}"/>
+      <input class="lg" data-i="${i}" placeholder="Brand #${i+1}" autocomplete="off"/></div>`).join('')}</div>`;
+  submitBtn(box);
+  activeGame.finalize=()=>{let correct=0;box.querySelectorAll('.lg').forEach(inp=>{
+    const it=set[+inp.dataset.i]; if(it && norm(inp.value)===norm(it.answer)) correct++;});
+    return {score:Math.round(correct/set.length*round.max),display:`${correct}/${set.length} logos correct`};};
+}
+// 13) Logo Guess — image + letter-tile keyboard, spell the brand.
+function logoPick(round){ const pool=round.logos||[]; const rnd=mulberry32((G.tStart||1)+9);
+  const idx=[...pool.keys()]; for(let i=idx.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]];}
+  return idx.slice(0,Math.min(round.count||6,pool.length)).map(i=>pool[i]); }
+function gameLogoGuess(box,round){
+  const chosen=logoPick(round);
+  let idx=0, solved=0, slots=[], tiles=[], answer='';
+  box.innerHTML=`
+    <div class="row" style="justify-content:space-between"><span class="muted" id="lgp"></span>
+      <span class="ptsbadge" id="lgpts" data-v="0">⭐ 0 pts</span></div>
+    <div class="lgstage"><img id="lgimg" alt="logo" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/>
+      <div class="lgmiss" style="display:none">Logo image not found —<br>place it in <b>public/logos/</b></div>
+      <div class="lgq">What logo is this?</div></div>
+    <div class="center" style="margin:10px 0"><button class="ghost" id="lghint">💡 I Need a Hint</button>
+      <span class="muted" id="lgmsg" style="margin-left:8px"></span></div>
+    <div class="lgslots" id="lgslots"></div>
+    <div class="lgbank" id="lgbank"></div>`;
+  const imgEl=$('#lgimg',box),slotsEl=$('#lgslots',box),bankEl=$('#lgbank',box),
+        msg=$('#lgmsg',box),prog=$('#lgp',box),pts=$('#lgpts',box);
+  function setPts(){ const s=Math.round(solved/chosen.length*(round.max||100)),old=+pts.dataset.v||0;
+    pts.dataset.v=s; pts.textContent='⭐ '+s+' pts'; if(s>old){pts.classList.remove('pulse');void pts.offsetWidth;pts.classList.add('pulse');} }
+  function load(){
+    if(idx>=chosen.length){ slotsEl.innerHTML=''; bankEl.innerHTML=''; imgEl.style.display='none';
+      $('#lghint',box).style.display='none'; msg.innerHTML='<b>All done! 🎉</b>';
+      setTimeout(()=>submitActiveGame(false),400); return; }
+    const L=chosen[idx]; answer=L.answer.toUpperCase().replace(/[^A-Z0-9]/g,'');
+    imgEl.style.display=''; imgEl.nextElementSibling.style.display='none'; imgEl.src=L.img;
+    prog.textContent='Logo '+(idx+1)+' / '+chosen.length+' · solved '+solved;
+    slots=answer.split('').map(()=>null);
+    const DEC='ABCDEFGHIJKLMNOPQRSTUVWXYZ', letters=answer.split('');
+    const decoy=clamp(13-answer.length,3,8);
+    for(let i=0;i<decoy;i++) letters.push(DEC[Math.floor(Math.random()*26)]);
+    for(let i=letters.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[letters[i],letters[j]]=[letters[j],letters[i]];}
+    tiles=letters.map((ch,i)=>({id:i,letter:ch,used:false}));
+    msg.textContent=''; draw();
+  }
+  function draw(){
+    slotsEl.innerHTML=slots.map(s=>`<div class="lgslot${s?' filled':''}">${s?esc(s.letter):''}</div>`).join('');
+    bankEl.innerHTML=tiles.map(t=>`<button class="lgtile" data-id="${t.id}"${t.used?' disabled':''}>${esc(t.letter)}</button>`).join('')
+      +`<button class="lgtile lgback" id="lgbk">⌫</button>`;
+    bankEl.querySelectorAll('.lgtile[data-id]').forEach(b=>b.onclick=()=>fill(+b.dataset.id));
+    $('#lgbk',bankEl).onclick=back;
+  }
+  function fill(id){ const t=tiles[id]; if(!t||t.used) return; const k=slots.findIndex(s=>!s); if(k<0) return;
+    slots[k]={letter:t.letter,tileId:id}; t.used=true; beep(600,.04,'square',.05); draw();
+    if(slots.every(Boolean)) check(); }
+  function back(){ for(let k=slots.length-1;k>=0;k--){ if(slots[k]){ const id=slots[k].tileId;
+    if(id!=null&&tiles[id]) tiles[id].used=false; slots[k]=null; draw(); return; } } }
+  function check(){ const guess=slots.map(s=>s.letter).join('');
+    if(guess===answer){ solved++; setPts(); sndGood(); confetti(30); msg.innerHTML='✅ Correct!'; slotsEl.classList.add('ok');
+      idx++; setTimeout(()=>{slotsEl.classList.remove('ok');load();},850); }
+    else { sndBad(); slotsEl.classList.add('shake'); msg.innerHTML='<span style="color:var(--red)">✗ Not quite</span>';
+      setTimeout(()=>{ slotsEl.classList.remove('shake'); slots=slots.map(()=>null); tiles.forEach(t=>t.used=false); msg.textContent=''; draw(); },750); } }
+  $('#lghint',box).onclick=()=>{ const k=slots.findIndex(s=>!s); if(k<0) return;
+    const t=tiles.find(x=>!x.used&&x.letter===answer[k]); if(t) fill(t.id); };
+  load();
+  activeGame.finalize=()=>({score:Math.round(solved/chosen.length*(round.max||100)),display:solved+'/'+chosen.length+' logos'});
+}
+
+function buildTeamReveal(round){
+  const ga=$('#gamearea');
+  const myPts=STORE['pscore:'+G.roundIndex+':'+MY.pid];
+  const t=teamOf(MY.pid);
+  let correctHTML='';
+  if(round.type==='text') correctHTML=`Answer: <b>${esc(round.answer)}</b>`;
+  else if(round.type==='quiz') correctHTML=`Correct: <b>${esc(round.options[round.answerIndex])}</b>`;
+  else if(round.type==='bughunt') correctHTML=`Bug on <b>line ${round.answerLine}</b>. ${esc(round.explanation)}`;
+  else if(round.type==='copy') correctHTML='Scored on how much you copied correctly.';
+  else if(round.type==='scramble') correctHTML='Words: '+(round.words||[]).map(w=>`<b>${esc(w.toUpperCase())}</b>`).join(', ');
+  else if(round.type==='brainstorm'){ const n=t?bsAccepted(round,t.id,G.roundIndex):0;
+    correctHTML=t?`Your team found <b>${n}</b> correct ${esc(round.category.toLowerCase())}.`:'Team game.'; }
+  else if(round.type==='codebreak'){
+    if(t){ const a=cbAssign(round,t); const cb=STORE['cb:'+G.roundIndex+':'+t.id];
+      correctHTML=`Your code was <b class="cbdig">${esc(a.code)}</b>. `+
+        (cb&&cb.solved?`Unlocked! 🔓 (+${cb.score})`:'Not cracked in time.')+
+        `<div class="muted" style="margin-top:8px;font-size:12px;line-height:1.6">`+
+        a.chosen.map((r,i)=>`#${i+1}: ${esc(r.text)} = <b>${r.a}</b>`).join('<br>')+`</div>`;
+    } else correctHTML='Team game.'; }
+  else if(round.type==='relay'){ const qs=round.questions||[]; let correct=0;
+    const rows=qs.map((q,i)=>{ const a=t?STORE['rq:'+G.roundIndex+':'+t.id+':'+i]:null;
+      const ok=a&&a.choice===q.answerIndex; if(ok)correct++;
+      return `<div>${ok?'✓':'✗'} ${esc(q.q)}${q.code?` <code>${esc(q.code.replace(/\n/g,' '))}</code>`:''} → <b>${esc(q.options[q.answerIndex])}</b>`+
+        (a&&!ok?` <span class="muted">(you: ${esc(q.options[a.choice]!=null?q.options[a.choice]:'—')})</span>`:'')+`</div>`; }).join('');
+    correctHTML=`Your team got <b>${correct}/${qs.length}</b> right.<div class="muted" style="margin-top:8px;font-size:12px;line-height:1.7">${rows}</div>`; }
+  else if(round.type==='emoji'){ const pz=round.puzzles||[]; let c=0;
+    const rows=pz.map((p,i)=>{ const a=t?STORE['em:'+G.roundIndex+':'+t.id+':'+i]:null; const ok=emCorrect(p,a); if(ok)c++;
+      return `<div>${ok?'✓':'✗'} ${esc(p.e)} → <b>${esc((p.accept||[])[0])}</b></div>`; }).join('');
+    correctHTML=`Your team decoded <b>${c}/${pz.length}</b>.<div class="muted" style="margin-top:8px;font-size:13px;line-height:1.8">${rows}</div>`; }
+  else if(round.type==='code') correctHTML=`Sample correct solution:<pre class="code" style="margin-top:6px">${esc(round.solution||'')}</pre>`;
+  else if(round.type==='logo'){ correctHTML='Answers: '+logoSet().map(it=>`<b>${esc(it.answer)}</b>`).join(', '); }
+  else if(round.type==='logoguess'){ correctHTML='Logos: '+logoPick(round).map(l=>`<b>${esc(l.answer)}</b>`).join(', '); }
+  ga.innerHTML=`<span class="pill reveal">ROUND OVER</span>
+    <div style="margin-top:10px">${correctHTML}</div>
+    <p>Your points: <b>${typeof myPts==='number'?myPts:'—'}</b>
+       ${t?`· ${esc(t.name)} round score: <b>${teamRoundScore(t,G.roundIndex)}</b>`:''}</p>
+    <p class="muted">Waiting for the host to continue…</p>`;
+}
+
+// ============================================================================
+//  HOST VIEW
+// ============================================================================
+function startHost(){ ROLE='host'; localStorage.setItem('dra_role','host'); lastKey=''; startPolling(2000); }
+
+function renderHost(){
+  const stage=G.stage||'lobby';
+  if(stage==='game') reconcileLateJoiners();   // after start, fold late joiners into a team
+  const key = stage==='game' ? ('game:'+G.phase+':'+G.roundIndex) : ('lobby:'+teamsMeta().length);
+  if(key!==lastKey){ lastKey=key; if(stage==='game') buildHostGameShell(); else buildHostLobby(); }
+  if(stage==='game'){
+    const hlb=$('#hlb'); if(hlb) hlb.innerHTML=leaderboardHTML();
+    refreshHostGameList();
+    if(ROUNDS[G.roundIndex].type==='logo') refreshLogoList();
+  } else {
+    refreshHostLobby();
+  }
+}
+
+// ---- Host: lobby + team building -------------------------------------------
+function buildHostLobby(){
+  const built=teamsMeta().length>0;
+  app.innerHTML=`
+    <div class="row" style="justify-content:space-between;margin-bottom:12px">
+      <div><span class="brand" style="font-size:20px;font-weight:900">DEVRUSH</span><span class="pill">HOST</span></div>
+      <button class="ghost" id="leave">Exit</button>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h3>Lobby — everyone who has joined</h3><span class="pill" id="cnt">0</span></div>
+      <div class="people" id="people"></div>
+      <div class="row" style="margin-top:14px">
+        <button class="ok" id="build">${built?'🔀 Reshuffle teams':'👥 Build Teams'}</button>
+        ${built?`<button id="start">🚀 Start Game</button>`:''}
+        ${built?`<button class="ghost" id="restart">🔁 Restart game (all scores)</button>`:''}
+        <span class="grow"></span>
+        <button class="warn" id="reset">Reset everything</button>
+      </div>
+      <p class="muted" style="font-size:12px;margin-top:6px">Teams are random and balanced (~${TEAM_TARGET}/team). Players see their team only when the game starts.</p>
+    </div>
+    <div id="teampreview"></div>`;
+  $('#leave').onclick=()=>{clearInterval(pollTimer);lastKey='';routeLanding();};
+  $('#build').onclick=buildTeams;
+  const st=$('#start'); if(st) st.onclick=startGame;
+  const rs=$('#restart'); if(rs) rs.onclick=restartGame;
+  $('#reset').onclick=async()=>{ if(confirm('Wipe everyone, teams and scores?')){
+    await apiReset(); await apiSet('game',defaultGame()); poll(); }};
+}
+function refreshHostLobby(){
+  const ppl=allPlayers(); const g=$('#people'),c=$('#cnt');
+  if(c) c.textContent=ppl.length+' joined';
+  if(g) g.innerHTML= ppl.length? ppl.map(p=>`<div class="person">${avatarHTML(p)}
+      <span class="nm">${esc(p.name)}</span>
+      <button class="x" data-pid="${esc(p.pid)}" title="remove">✕</button></div>`).join('')
+    : '<p class="muted">No one has joined yet. Share the link!</p>';
+  if(g) g.querySelectorAll('.x').forEach(b=>b.onclick=async()=>{ await apiDel('player:'+b.dataset.pid); poll(); });
+  // team preview (host only)
+  const tp=$('#teampreview'); const teams=teamsMeta();
+  if(tp) tp.innerHTML = teams.length? '<div class="card"><h3>Team preview</h3>'+teams.map(t=>{
+      const m=teamMembers(t);
+      return `<div class="teamcard"><h3><span class="dot" style="background:${esc(t.color)}"></span>${esc(t.name)}
+        <span class="muted" style="font-weight:400;font-size:13px">· ${m.length} members</span></h3>
+        <div class="members">${m.map(p=>`<span class="memchip">${avatarHTML(p,'sm')}${esc(p.name)}</span>`).join('')}</div></div>`;
+    }).join('')+'</div>' : '';
+}
+
+async function buildTeams(){
+  const ppl=allPlayers();
+  if(ppl.length<2){ alert('Need at least 2 players to build teams.'); return; }
+  const shuffled=[...ppl].sort(()=>Math.random()-0.5);
+  const k=clamp(Math.round(ppl.length/TEAM_TARGET),1,TEAM_POOL.length);
+  const pool=[...TEAM_POOL].sort(()=>Math.random()-0.5).slice(0,k);
+  const teams=pool.map((meta,i)=>({id:'t'+i,name:meta.name,color:meta.color,pids:[]}));
+  shuffled.forEach((p,i)=>teams[i%k].pids.push(p.pid)); // round-robin => balanced
+  await apiSet('teams',teams);
+  beep(700,.12); confetti(60); poll();
+}
+
+// Fold players who joined after the game started into the smallest team.
+// Idempotent: dedupes pids, drops removed players, adds each newcomer once,
+// and only writes when something actually changed (avoids poll races).
+async function reconcileLateJoiners(){
+  const teams=teamsMeta(); if(!teams.length) return;
+  const valid=new Set(allPlayers().map(p=>p.pid));
+  const seen=new Set();
+  const copy=teams.map(t=>({...t,pids:(t.pids||[]).filter(pid=>{
+    if(!valid.has(pid)||seen.has(pid)) return false; seen.add(pid); return true; })}));
+  const late=allPlayers().filter(p=>!seen.has(p.pid));
+  for(const p of late){ copy.sort((a,b)=>a.pids.length-b.pids.length); copy[0].pids.push(p.pid); seen.add(p.pid); }
+  if(JSON.stringify(copy)!==JSON.stringify(teams)) await apiSet('teams',copy);
+}
+
+async function startGame(){
+  await apiSet('game',{stage:'game',roundIndex:0,phase:'lobby',tStart:0,duration:0});
+  beep(880,.15); poll();
+}
+async function backToLobby(){
+  await apiSet('game',{...defaultGame()}); poll();
+}
+
+// Clear every score/submission. Uses the fast server endpoint, and falls back to
+// per-key deletes if the server hasn't been relaunched with that endpoint yet.
+async function clearScores(){
+  try{ const r=await fetch('/api/clearScores',{method:'POST'}); if(r.ok) return; }catch(e){}
+  const keys=Object.keys(STORE).filter(k=>
+    k.startsWith('pscore:')||k.startsWith('panswer:')||k.startsWith('tscore:'));
+  await Promise.all(keys.map(k=>apiDel(k)));
+}
+// Restart just the CURRENT round: clear this round's scores/submissions and put
+// it back to the ready state so the host can start it again.
+async function restartRound(){
+  const i=G.roundIndex;
+  if(!confirm('Restart round '+(i+1)+' ("'+ROUNDS[i].title+'")? This round\'s scores are cleared so teams can play it again.')) return;
+  const keys=Object.keys(STORE).filter(k=>
+    k.startsWith('pscore:'+i+':')||k.startsWith('panswer:'+i+':')||k.startsWith('tscore:'+i+':')||
+    k.startsWith('bs:'+i+':')||k.startsWith('rq:'+i+':')||k.startsWith('cb:'+i+':')||k.startsWith('em:'+i+':'));
+  await Promise.all(keys.map(k=>apiDel(k)));
+  await apiSet('game',{stage:'game',roundIndex:i,phase:'lobby',tStart:0,duration:0});
+  beep(660,.1);setTimeout(()=>beep(880,.12),90); poll();
+}
+
+// Restart the WHOLE game: clear ALL scores, keep the same players/teams, back to round 1.
+async function restartGame(){
+  if(!confirm('Restart the WHOLE game? Every round\'s scores are cleared and the SAME teams play again from round 1.')) return;
+  await clearScores();
+  await apiSet('game',{stage:'game',roundIndex:0,phase:'lobby',tStart:0,duration:0});
+  beep(660,.1);setTimeout(()=>beep(990,.15),100); confetti(60); poll();
+}
+
+// ---- Host: game ------------------------------------------------------------
+function buildHostGameShell(){
+  const round=ROUNDS[G.roundIndex];
+  const roundBtns=ROUNDS.map((r,i)=>`<button class="${i===G.roundIndex?'cur':''}" data-i="${i}">${i+1}</button>`).join('');
+  app.innerHTML=`
+    <div class="row" style="justify-content:space-between;margin-bottom:12px">
+      <div><span class="brand" style="font-size:20px;font-weight:900">DEVRUSH</span><span class="pill">HOST</span></div>
+      <button class="ghost" id="leave">Exit</button>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <div><span class="pill ${G.phase==='playing'?'live':G.phase==='reveal'?'reveal':'lobby'}">
+          ${G.phase==='playing'?'LIVE':G.phase.toUpperCase()}</span>
+          <span class="muted"> Round ${G.roundIndex+1}/${ROUNDS.length} · ${esc(round.type)}</span></div>
+        <div class="timer big" style="font-size:38px">0:00</div>
+      </div>
+      <h2 style="margin-top:8px">${esc(round.title)}</h2>
+      <p class="muted">${esc(round.prompt)}</p>
+      <div class="row" style="margin-top:8px">
+        <button class="ghost" id="prev">◀ Prev</button>
+        ${G.phase!=='playing'?`<button class="ok" id="start">▶ Start Round</button>`:`<button class="warn" id="reveal">■ End & Reveal</button>`}
+        <button class="ghost" id="next">Next ▶</button>
+        <span class="grow"></span>
+        <button class="ghost" id="restartRound">🔁 Restart Round</button>
+        <button class="ghost" id="tolobby">Back to Lobby</button>
+        <button class="warn" id="reset">Reset</button>
+      </div>
+      <div class="roundlist" style="margin-top:12px">${roundBtns}</div>
+    </div>
+    <div class="card">
+      <h3>📋 Brief the players — how this game works</h3>
+      ${helpCardHTML(round)}
+    </div>
+    ${round.type==='logo'?`
+    <div class="card logoadmin">
+      <h3>🖼️ Logo setup</h3>
+      <p class="muted">Add each logo image and the brand name teams must guess. Do this before starting the round.</p>
+      <div class="row" style="align-items:end">
+        <div style="flex:0 0 auto"><label class="muted" style="font-size:12px">Image</label>
+          <input type="file" id="lgfile" accept="image/*" style="width:auto"/></div>
+        <div class="grow"><label class="muted" style="font-size:12px">Brand / answer</label>
+          <input id="lgans" placeholder="e.g. Apple"/></div>
+        <button class="ok" id="lgadd">＋ Add logo</button>
+      </div>
+      <div id="lgstatus" class="muted" style="margin-top:6px;font-size:12px"></div>
+      <ul id="logolist" style="list-style:none;padding:0;margin-top:12px"></ul>
+    </div>`:''}
+    <div class="grid2">
+      <div class="card"><h3>Live — Round ${G.roundIndex+1}: ${esc(round.title)}</h3><div id="teamlist"></div></div>
+      <div class="card"><h3>🏆 Leaderboard</h3><div id="hlb"></div></div>
+    </div>`;
+  $('#leave').onclick=()=>{clearInterval(pollTimer);lastKey='';routeLanding();};
+  $('#prev').onclick=()=>jumpRound(G.roundIndex-1);
+  $('#next').onclick=()=>jumpRound(G.roundIndex+1);
+  const s=$('#start'); if(s) s.onclick=startRound;
+  const rv=$('#reveal'); if(rv) rv.onclick=revealRound;
+  $('#restartRound').onclick=restartRound;
+  $('#tolobby').onclick=()=>{ if(confirm('Return to the lobby? Current teams stay; you can reshuffle.')) backToLobby(); };
+  $('#reset').onclick=async()=>{ if(confirm('Wipe everyone, teams and scores?')){
+    await apiReset(); await apiSet('game',defaultGame()); poll(); }};
+  document.querySelectorAll('.roundlist button').forEach(b=>b.onclick=()=>jumpRound(+b.dataset.i));
+  if(round.type==='logo') wireLogoAdmin();
+  $('#hlb').innerHTML=leaderboardHTML();
+  refreshHostGameList();
+}
+
+function refreshHostGameList(){
+  const wrap=$('#teamlist'); if(!wrap) return;
+  const ae=document.activeElement;
+  if(ae && ae.classList && ae.classList.contains('scinp')) return;
+  const teams=teamsMeta(); const r=G.roundIndex;
+  if(!teams.length){ wrap.innerHTML='<p class="muted">No teams.</p>'; return; }
+  wrap.innerHTML=teams.map(t=>{
+    const m=teamMembers(t);
+    const rows=m.map(p=>{
+      const a=STORE['panswer:'+r+':'+p.pid]; const sc=STORE['pscore:'+r+':'+p.pid];
+      const txt=a?esc(a.display||'(submitted)'):'<span class="muted">—</span>';
+      const pts=typeof sc==='number'?`<b>${sc}</b>`:'';
+      return `<div class="row" style="gap:8px;font-size:13px;margin:2px 0">
+        ${avatarHTML(p,'sm')}<span style="min-width:90px">${esc(p.name)}</span>
+        <span class="grow" style="opacity:.9">${txt}</span>${pts}</div>`;
+    }).join('');
+    const ov=STORE['tscore:'+r+':'+t.id]; const cur=typeof ov==='number'?ov:'';
+    return `<div class="teamcard">
+      <h3><span class="dot" style="background:${esc(t.color)}"></span>${esc(t.name)}
+        <span class="grow"></span>
+        <span class="pill">round ${teamRoundScore(t,r)} · total ${teamTotal(t)}</span></h3>
+      ${rows||'<span class="muted">no members</span>'}
+      <div class="row" style="gap:6px;margin-top:8px">
+        <span class="muted" style="font-size:12px">Override team round score:</span>
+        <input type="number" class="scinp" data-t="${t.id}" value="${cur}" placeholder="avg" style="width:80px"/>
+        <button class="setpts" data-t="${t.id}">Set</button>
+        <button class="ghost clearpts" data-t="${t.id}">Auto</button>
+      </div></div>`;
+  }).join('');
+  wrap.querySelectorAll('.setpts').forEach(b=>b.onclick=()=>{
+    const inp=wrap.querySelector('.scinp[data-t="'+b.dataset.t+'"]');
+    setTeamOverride(b.dataset.t, parseInt(inp.value,10)||0);});
+  wrap.querySelectorAll('.clearpts').forEach(b=>b.onclick=()=>clearTeamOverride(b.dataset.t));
+}
+
+async function setTeamOverride(teamId,pts){
+  await apiSet('tscore:'+G.roundIndex+':'+teamId,pts);
+  sndAward(); confetti(60); const w=$('#teamlist'); if(w) w.classList.add('flash'); poll();
+}
+async function clearTeamOverride(teamId){ await apiDel('tscore:'+G.roundIndex+':'+teamId); poll(); }
+
+async function startRound(){
+  const round=ROUNDS[G.roundIndex];
+  await apiSet('game',{stage:'game',roundIndex:G.roundIndex,phase:'playing',tStart:serverNow(),duration:round.duration});
+  beep(700,.1); poll();
+}
+async function revealRound(){ await apiSet('game',{...G,phase:'reveal'}); beep(500,.1); poll(); }
+async function jumpRound(i){ i=clamp(i,0,ROUNDS.length-1);
+  await apiSet('game',{stage:'game',roundIndex:i,phase:'lobby',tStart:0,duration:0}); poll(); }
+
+// ---- Host logo admin -------------------------------------------------------
+function wireLogoAdmin(){
+  const add=$('#lgadd'); if(!add) return;
+  add.onclick=async()=>{
+    const f=$('#lgfile'),a=$('#lgans'),st=$('#lgstatus');
+    if(!f.files||!f.files[0]){ st.textContent='Pick an image first.'; return; }
+    if(!a.value.trim()){ st.textContent='Enter the brand/answer.'; return; }
+    add.disabled=true; st.textContent='Uploading…';
+    try{ const dataUrl=await fileToDataUrl(f.files[0]); const up=await apiUpload(f.files[0].name,dataUrl);
+      if(!up.url) throw new Error(up.error||'upload failed');
+      const set=logoSet().concat([{url:up.url,answer:a.value.trim()}]);
+      await apiSet('config:logoset',set); f.value='';a.value='';st.textContent='Added ✓';beep(700,.1); await poll();
+    }catch(e){ st.textContent='Error: '+e.message; } add.disabled=false; };
+}
+function refreshLogoList(){
+  const ul=$('#logolist'); if(!ul) return; const set=logoSet();
+  ul.innerHTML=set.length? set.map((it,i)=>`<li><img src="${esc(it.url)}"/><b>${esc(it.answer)}</b>
+    <button class="warn lgdel" data-i="${i}" style="margin-left:auto;padding:4px 10px">Remove</button></li>`).join('')
+    : '<li class="muted">No logos added yet.</li>';
+  ul.querySelectorAll('.lgdel').forEach(b=>b.onclick=async()=>{
+    const set=logoSet().filter((_,i)=>i!==+b.dataset.i); await apiSet('config:logoset',set); await poll();});
+}
+
+// ============================================================================
+//  BOOT
+// ============================================================================
+(async function(){
+  await syncClock(); setInterval(syncClock,30000);
+  // Resume the session on refresh instead of dumping the user back to the landing page.
+  const role=localStorage.getItem('dra_role');
+  if(role==='player' && MY && MY.pid) startPlayer();
+  else if(role==='host') startHost();
+  else routeLanding();
+})();
+</script>
+</body>
+</html>
