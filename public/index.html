@@ -330,21 +330,6 @@ const ROUNDS = [
     prompt:'Decode this Caesar cipher (each letter shifted forward by 6):', puzzle:'IXGIQ ZNK YKIXKZ IUJK',
     answer:'CRACK THE SECRET CODE', hint:'Shift every letter back by 6 (I→C, X→R, G→A …).' },
 
-  { id:'r11', type:'emoji', title:'Emoji Decode', duration:180, max:100,
-    prompt:'Decode all 10 emoji puzzles as a TEAM! Talk it out in team chat — anyone can lock in an answer. 10 points per correct guess.',
-    puzzles:[
-      {e:'🍏📱', accept:['APPLE']},
-      {e:'👻📸', accept:['SNAPCHAT','SNAP']},
-      {e:'🚗⚡', accept:['TESLA']},
-      {e:'📺🔴', accept:['NETFLIX']},
-      {e:'🪟🖥️', accept:['WINDOWS','MICROSOFT']},
-      {e:'🎧🟢', accept:['SPOTIFY']},
-      {e:'📦🙂', accept:['AMAZON']},
-      {e:'👍📘', accept:['FACEBOOK','META']},
-      {e:'🔍🌈', accept:['GOOGLE']},
-      {e:'▶️🔴', accept:['YOUTUBE']}
-    ] },
-
   { id:'r12', type:'bughunt', title:'Bug Hunt', duration:90, max:100,
     prompt:'This factorial function has ONE bug. Which line number is wrong?',
     lines:[
@@ -598,7 +583,7 @@ function routeLanding(){
   app.innerHTML = `
     <div class="card center" style="margin-top:8vh">
       <div class="big brand">DEVRUSH ARENA</div>
-      <p class="muted">Live multiplayer team-building — 13 mini-games, one champion.</p>
+      <p class="muted">Live multiplayer team-building — 12 mini-games, one champion.</p>
       <div class="row" style="justify-content:center;margin-top:18px">
         <button id="bJoin">🎮 Join the Arena</button>
         <button id="bHost" class="ghost">🎛️ Host Console</button>
@@ -672,11 +657,12 @@ async function poll(){
     storeVersion = Number(r.headers.get('X-Store-Version')||'0');
     STORE = await r.json();
     G = STORE.game || defaultGame();
+    if(!(G.roundIndex>=0 && G.roundIndex<ROUNDS.length)) G.roundIndex=0;  // guard stale/out-of-range
     if(ROLE==='player') renderPlayer();
     else if(ROLE==='host') renderHost();
   }catch(e){}
 }
-function startPolling(ms){ clearInterval(pollTimer); poll(); pollTimer=setInterval(poll,ms); }
+function startPolling(ms){ clearInterval(pollTimer); storeVersion=-1; poll(); pollTimer=setInterval(poll,ms); }
 
 // ---- Timer -----------------------------------------------------------------
 function remaining(){

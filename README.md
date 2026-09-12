@@ -2,7 +2,7 @@
 
 A live, multiplayer team-building game for tech events. Everyone joins on their
 own phone/laptop with a **name + avatar**; the host builds **random balanced
-teams**, and everyone battles through **13 mini-games** together. No database,
+teams**, and everyone battles through **12 mini-games** together. No database,
 no build step — just Node + Express and a `data.json` key-value store.
 
 How it flows:
@@ -63,7 +63,7 @@ Notes:
   hosts with ephemeral disks they reset on redeploy, so back them up or use a
   persistent volume.
 
-## The 13 games
+## The 12 games
 
 | # | Game | What teams do | Scoring |
 |---|------|---------------|---------|
@@ -77,9 +77,8 @@ Notes:
 | 8 | Memory Matrix | Repeat a growing sequence | Auto: level reached |
 | 9 | Reaction Rush | Tap on green, ×3 | Auto: reaction time |
 | 10 | Cipher Crack | Decode a Caesar cipher | Auto: correct + speed |
-| 11 | Emoji Decode | Team decodes 10 emoji puzzles together (chat) | Team: 10 pts per correct (shared) |
 | 12 | Bug Hunt | Find the buggy line | Auto: correct + speed |
-| 13 | Logo Guess | See a logo, spell the brand with letter tiles (hint available) | Auto: logos solved |
+| 13 | Logo Guess | Team game: one logo every 30s; anyone spells the brand with letter tiles (2 hints/player) | Team: logos solved (shared) |
 
 Every round is auto-scored: each player's result is submitted the moment they
 finish (or when the timer hits zero), and a team's round score is the **average**
@@ -107,11 +106,12 @@ Host reset options:
 
 ### Logo Guess setup
 
-On the **Logo Guess** round the host console shows a *Logo setup* panel. Before
-starting the round, for each logo: choose an image file, type the brand/answer,
-and click **＋ Add logo**. Images upload to the server and the set is shared with
-every team. Use **Remove** to drop one. Teams then see all the logos and type a
-brand under each; they score one point per correct answer.
+Logo Guess is a team round: put one PNG per logo in `public/logos/` (exact file
+names are listed in `public/logos/README.txt`), and set the matching `answer`/`hint`
+in the `logos:` array of round `r13` in `public/index.html`. During play, one logo
+shows for 30 seconds and auto-advances; anyone on a team spells the brand with the
+on-screen letter tiles to lock it in (2 hints per player). The team scores one
+point per logo it gets right.
 
 ## Architecture
 
@@ -125,7 +125,7 @@ brand under each; they score one point per correct answer.
     keeps players, teams and logos
   - `POST /api/reset` — wipe everything (host "Reset")
 - `public/index.html` — the entire single-page app (landing / join / player /
-  host), all 13 games, sound + confetti. No external dependencies or CDNs, so it
+  host), all 12 games, sound + confetti. No external dependencies or CDNs, so it
   works fully offline on a LAN.
 - `data.json` — the persisted store. Deleting it resets the game.
 
