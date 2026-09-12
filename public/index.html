@@ -358,8 +358,8 @@ const ROUNDS = [
     ], answerLine:3,
     explanation:'Line 3: the loop should be i <= n. With i < n it stops one short and misses the final factor.' },
 
-  { id:'r13', type:'logoguess', title:'Logo Guess', duration:180, max:100, count:7,
-    prompt:'Guess the brand from its logo — tap the letters to spell it out!',
+  { id:'r13', type:'logoguess', title:'Logo Guess', duration:280, max:100,
+    prompt:'As a TEAM, guess each logo! One logo every 20 seconds — anyone can spell the brand with the letter tiles to lock it in.',
     logos:[
       {img:'logos/github.png',     answer:'GITHUB',     hint:'Where developers host code — the Octocat'},
       {img:'logos/docker.png',     answer:'DOCKER',     hint:'Containers — the friendly whale'},
@@ -408,9 +408,9 @@ const GAME_HELP = {
       pts:'10 points per correct puzzle your team cracks (all 10 = 100). One shared team score.'},
   r12:{how:'Read the code, spot the ONE line with the bug, and tap that line number.',
       pts:'Correct answer scores up to 100 — the sooner you answer, the more you get.'},
-  r13:{how:'A logo appears — tap the lettered tiles to spell the brand name into the slots. Stuck? Use “I Need a Hint” to reveal a letter. Solve as many as you can.',
-      ex:'You see the Google “G”. Tap G-O-O-G-L-E from the tiles to fill the slots → correct!',
-      pts:'Points for each logo you spell correctly (all of them = 100).'}
+  r13:{how:'A TEAM game! A logo shows for 20 seconds then auto-advances. Anyone on the team taps the letter tiles to spell the brand and lock it in — talk it over in team chat. Each player gets 2 hints total.',
+      ex:'The Figma logo appears — someone taps F-I-G-M-A from the tiles to lock it for the team before the 20 seconds run out.',
+      pts:'Points for each logo your team gets right (all of them = 100). One shared team score. Max 2 hints per player.'}
 };
 
 // ---- Small helpers ---------------------------------------------------------
@@ -540,6 +540,10 @@ function teamRoundScore(t,r){
     for(let i=0;i<pz.length;i++){ const a=STORE['em:'+r+':'+t.id+':'+i];
       if(a && (pz[i].accept||[]).map(norm).includes(norm(a.text))) correct++; }
     return pz.length?Math.round(correct/pz.length*(round.max||100)):0;
+  }
+  if(round && round.type==='logoguess'){
+    const total=(round.logos||[]).length;
+    return total?Math.round(logoSolvedCount(round,t.id,r)/total*(round.max||100)):0;
   }
   // Individual games: team score = average of members' points.
   const m=teamMembers(t); if(!m.length) return 0;
@@ -692,7 +696,10 @@ setInterval(()=>{
       submitActiveGame(true);
     }
     lastTick=rem;
-    if(ROLE==='player' && G.stage==='game' && ROUNDS[G.roundIndex] && ROUNDS[G.roundIndex].type==='relay') relayTick();
+    if(ROLE==='player' && G.stage==='game' && ROUNDS[G.roundIndex]){
+      const _t=ROUNDS[G.roundIndex].type;
+      if(_t==='relay') relayTick(); else if(_t==='logoguess') logoTick();
+    }
   }
 },250);
 
@@ -733,6 +740,7 @@ function renderPlayer(){
       else if(rt==='codebreak') refreshCodebreak();
       else if(rt==='relay') refreshRelay();
       else if(rt==='emoji') refreshEmoji();
+      else if(rt==='logoguess') refreshLogoGuess();
       else refreshSubmitCount();
     }
   } else {
@@ -881,7 +889,7 @@ function mountTeamGame(round){
   const box=document.createElement('div'); ga.appendChild(box);
   // Collaborative games are team-scored (no per-person panswer) — never apply the
   // individual "already submitted" lock to them.
-  const collaborative = ['brainstorm','codebreak','relay','emoji'].includes(round.type);
+  const collaborative = ['brainstorm','codebreak','relay','emoji','logoguess'].includes(round.type);
   const already = !collaborative && STORE['panswer:'+G.roundIndex+':'+MY.pid];
   activeGame={round,submitted:false,finalize:()=>({}),cleanup:null};
   switch(round.type){
@@ -1488,64 +1496,87 @@ function gameLogo(box,round){
     const it=set[+inp.dataset.i]; if(it && norm(inp.value)===norm(it.answer)) correct++;});
     return {score:Math.round(correct/set.length*round.max),display:`${correct}/${set.length} logos correct`};};
 }
-// 13) Logo Guess — image + letter-tile keyboard, spell the brand.
-function logoPick(round){ const pool=round.logos||[]; const rnd=mulberry32((G.tStart||1)+9);
+// 13) Logo Guess — TEAM game: all logos, one every LOGO_PER sec (auto-advancing,
+// synced), anyone on the team spells it to lock it. Max 2 hints per player.
+const LOGO_PER=20;            // seconds each logo is shown
+let logoHints=0;              // per-player hint uses this round
+function logoOrder(round){ const pool=round.logos||[]; const rnd=mulberry32((G.tStart||1)+9);
   const idx=[...pool.keys()]; for(let i=idx.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]];}
-  return idx.slice(0,Math.min(round.count||6,pool.length)).map(i=>pool[i]); }
+  return idx.map(i=>pool[i]); }
+function logoCurrent(round){ const total=(round.logos||[]).length;
+  if(!G.tStart||G.phase!=='playing') return 0;
+  return clamp(Math.floor((serverNow()-G.tStart)/(LOGO_PER*1000)),0,total-1); }
+function logoSecLeft(){ if(!G.tStart) return LOGO_PER;
+  const e=(serverNow()-G.tStart)/1000; return clamp(LOGO_PER-Math.floor(e%LOGO_PER),0,LOGO_PER); }
+function logoSolvedCount(round,teamId,r){ let n=0; for(let i=0;i<(round.logos||[]).length;i++) if(STORE['lg:'+r+':'+teamId+':'+i]) n++; return n; }
 function gameLogoGuess(box,round){
-  const chosen=logoPick(round);
-  let idx=0, solved=0, slots=[], tiles=[], answer='';
-  box.innerHTML=`
-    <div class="row" style="justify-content:space-between"><span class="muted" id="lgp"></span>
-      <span class="ptsbadge" id="lgpts" data-v="0">⭐ 0 pts</span></div>
-    <div class="lgstage"><img id="lgimg" alt="logo" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/>
-      <div class="lgmiss" style="display:none">Logo image not found —<br>place it in <b>public/logos/</b></div>
+  const t=teamOf(MY.pid); activeGame.submitted=true; activeGame.finalize=()=>({});
+  if(!t){ box.innerHTML='<p class="muted">Waiting to be put on a team…</p>'; return; }
+  logoHints=0;
+  box.innerHTML='<div id="lgwrap"></div>';
+  renderLogoGuess();
+}
+function renderLogoGuess(){
+  const wrap=document.getElementById('lgwrap'); if(!wrap) return;
+  const r=G.roundIndex, round=ROUNDS[r], t=teamOf(MY.pid); if(!t) return;
+  const list=logoOrder(round), total=list.length, cur=logoCurrent(round);
+  const L=list[cur], answer=L.answer.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const solved=STORE['lg:'+r+':'+t.id+':'+cur];
+  const solvedCount=logoSolvedCount(round,t.id,r);
+  const score=Math.round(solvedCount/total*(round.max||100));
+  wrap.dataset.cur=cur; wrap.dataset.sig=cur+'|'+(solved?1:0);
+  wrap.innerHTML=`
+    <div class="row" style="justify-content:space-between">
+      <span class="muted">Logo ${cur+1} / ${total} · ${solvedCount} solved</span>
+      <span class="ptsbadge">⏱ <span id="lgtime">${logoSecLeft()}</span>s · ⭐ ${score} pts</span></div>
+    <div class="lgstage"><img id="lgimg" src="${esc(L.img)}" alt="logo" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/>
+      <div class="lgmiss" style="display:none">Logo image not found — place it in <b>public/logos/</b></div>
       <div class="lgq">What logo is this?</div></div>
-    <div class="center" style="margin:10px 0"><button class="ghost" id="lghint">💡 I Need a Hint</button>
-      <span class="muted" id="lgmsg" style="margin-left:8px"></span></div>
-    <div class="lgslots" id="lgslots"></div>
-    <div class="lgbank" id="lgbank"></div>`;
-  const imgEl=$('#lgimg',box),slotsEl=$('#lgslots',box),bankEl=$('#lgbank',box),
-        msg=$('#lgmsg',box),prog=$('#lgp',box),pts=$('#lgpts',box);
-  function setPts(){ const s=Math.round(solved/chosen.length*(round.max||100)),old=+pts.dataset.v||0;
-    pts.dataset.v=s; pts.textContent='⭐ '+s+' pts'; if(s>old){pts.classList.remove('pulse');void pts.offsetWidth;pts.classList.add('pulse');} }
-  function load(){
-    if(idx>=chosen.length){ slotsEl.innerHTML=''; bankEl.innerHTML=''; imgEl.style.display='none';
-      $('#lghint',box).style.display='none'; msg.innerHTML='<b>All done! 🎉</b>';
-      setTimeout(()=>submitActiveGame(false),400); return; }
-    const L=chosen[idx]; answer=L.answer.toUpperCase().replace(/[^A-Z0-9]/g,'');
-    imgEl.style.display=''; imgEl.nextElementSibling.style.display='none'; imgEl.src=L.img;
-    prog.textContent='Logo '+(idx+1)+' / '+chosen.length+' · solved '+solved;
-    slots=answer.split('').map(()=>null);
-    const DEC='ABCDEFGHIJKLMNOPQRSTUVWXYZ', letters=answer.split('');
-    const decoy=clamp(13-answer.length,3,8);
-    for(let i=0;i<decoy;i++) letters.push(DEC[Math.floor(Math.random()*26)]);
-    for(let i=letters.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[letters[i],letters[j]]=[letters[j],letters[i]];}
-    tiles=letters.map((ch,i)=>({id:i,letter:ch,used:false}));
-    msg.textContent=''; draw();
-  }
+    ${solved
+      ? `<div class="center" style="margin:14px 0"><span class="pill live">✓ ${esc(answer)} — solved by ${esc(solved.by)}</span></div>`
+      : `<div class="center" style="margin:10px 0">
+           <button class="ghost" id="lghint"${logoHints>=2?' disabled':''}>💡 Hint (${Math.max(0,2-logoHints)} left)</button>
+           <span class="muted" id="lgmsg" style="margin-left:8px"></span></div>
+         <div class="lgslots" id="lgslots"></div>
+         <div class="lgbank" id="lgbank"></div>`}`;
+  if(solved) return;
+  // local tile board for the current logo (stable within the 20s window)
+  let slots=answer.split('').map(()=>null);
+  const brnd=mulberry32((G.tStart||1)+cur*131+7), DEC='ABCDEFGHIJKLMNOPQRSTUVWXYZ', letters=answer.split('');
+  const decoy=clamp(13-answer.length,3,8);
+  for(let i=0;i<decoy;i++) letters.push(DEC[Math.floor(brnd()*26)]);
+  for(let i=letters.length-1;i>0;i--){const j=Math.floor(brnd()*(i+1));[letters[i],letters[j]]=[letters[j],letters[i]];}
+  let tiles=letters.map((ch,i)=>({id:i,letter:ch,used:false}));
+  const slotsEl=wrap.querySelector('#lgslots'), bankEl=wrap.querySelector('#lgbank'), msg=wrap.querySelector('#lgmsg'), hintBtn=wrap.querySelector('#lghint');
   function draw(){
     slotsEl.innerHTML=slots.map(s=>`<div class="lgslot${s?' filled':''}">${s?esc(s.letter):''}</div>`).join('');
-    bankEl.innerHTML=tiles.map(t=>`<button class="lgtile" data-id="${t.id}"${t.used?' disabled':''}>${esc(t.letter)}</button>`).join('')
+    bankEl.innerHTML=tiles.map(x=>`<button class="lgtile" data-id="${x.id}"${x.used?' disabled':''}>${esc(x.letter)}</button>`).join('')
       +`<button class="lgtile lgback" id="lgbk">⌫</button>`;
     bankEl.querySelectorAll('.lgtile[data-id]').forEach(b=>b.onclick=()=>fill(+b.dataset.id));
-    $('#lgbk',bankEl).onclick=back;
+    bankEl.querySelector('#lgbk').onclick=back;
   }
-  function fill(id){ const t=tiles[id]; if(!t||t.used) return; const k=slots.findIndex(s=>!s); if(k<0) return;
-    slots[k]={letter:t.letter,tileId:id}; t.used=true; beep(600,.04,'square',.05); draw();
+  function fill(id){ const x=tiles[id]; if(!x||x.used) return; const k=slots.findIndex(s=>!s); if(k<0) return;
+    slots[k]={letter:x.letter,tileId:id}; x.used=true; beep(600,.04,'square',.05); draw();
     if(slots.every(Boolean)) check(); }
-  function back(){ for(let k=slots.length-1;k>=0;k--){ if(slots[k]){ const id=slots[k].tileId;
-    if(id!=null&&tiles[id]) tiles[id].used=false; slots[k]=null; draw(); return; } } }
-  function check(){ const guess=slots.map(s=>s.letter).join('');
-    if(guess===answer){ solved++; setPts(); sndGood(); confetti(30); msg.innerHTML='✅ Correct!'; slotsEl.classList.add('ok');
-      idx++; setTimeout(()=>{slotsEl.classList.remove('ok');load();},850); }
+  function back(){ for(let k=slots.length-1;k>=0;k--){ if(slots[k]){ const id=slots[k].tileId; if(id!=null&&tiles[id])tiles[id].used=false; slots[k]=null; draw(); return; } } }
+  async function check(){
+    if(STORE['lg:'+r+':'+t.id+':'+cur] || logoCurrent(round)!==cur) return;   // teammate solved, or window passed
+    if(slots.map(s=>s.letter).join('')===answer){ sndGood(); confetti(30);
+      await apiSet('lg:'+r+':'+t.id+':'+cur,{by:MY.name, ts:serverNow()}); await poll(); }
     else { sndBad(); slotsEl.classList.add('shake'); msg.innerHTML='<span style="color:var(--red)">✗ Not quite</span>';
-      setTimeout(()=>{ slotsEl.classList.remove('shake'); slots=slots.map(()=>null); tiles.forEach(t=>t.used=false); msg.textContent=''; draw(); },750); } }
-  $('#lghint',box).onclick=()=>{ const k=slots.findIndex(s=>!s); if(k<0) return;
-    const t=tiles.find(x=>!x.used&&x.letter===answer[k]); if(t) fill(t.id); };
-  load();
-  activeGame.finalize=()=>({score:Math.round(solved/chosen.length*(round.max||100)),display:solved+'/'+chosen.length+' logos'});
+      setTimeout(()=>{ slotsEl.classList.remove('shake'); slots=slots.map(()=>null); tiles.forEach(x=>x.used=false); msg.textContent=''; draw(); },600); } }
+  if(hintBtn) hintBtn.onclick=()=>{ if(logoHints>=2) return; const k=slots.findIndex(s=>!s); if(k<0) return;
+    const x=tiles.find(z=>!z.used&&z.letter===answer[k]); if(x){ logoHints++; fill(x.id);
+      hintBtn.textContent='💡 Hint ('+Math.max(0,2-logoHints)+' left)'; if(logoHints>=2) hintBtn.disabled=true; } };
+  draw();
 }
+function refreshLogoGuess(){ const wrap=document.getElementById('lgwrap'); if(!wrap) return;
+  const t=teamOf(MY.pid); if(!t) return; const r=G.roundIndex, round=ROUNDS[r];
+  const cur=logoCurrent(round); const sig=cur+'|'+(STORE['lg:'+r+':'+t.id+':'+cur]?1:0);
+  if(wrap.dataset.sig!==sig) renderLogoGuess(); }
+function logoTick(){ const wrap=document.getElementById('lgwrap'); if(!wrap) return;
+  if(String(logoCurrent(ROUNDS[G.roundIndex]))!==wrap.dataset.cur){ renderLogoGuess(); return; }
+  const el=document.getElementById('lgtime'); if(el) el.textContent=logoSecLeft(); }
 
 function buildTeamReveal(round){
   const ga=$('#gamearea');
@@ -1578,7 +1609,9 @@ function buildTeamReveal(round){
     correctHTML=`Your team decoded <b>${c}/${pz.length}</b>.<div class="muted" style="margin-top:8px;font-size:13px;line-height:1.8">${rows}</div>`; }
   else if(round.type==='code') correctHTML=`Sample correct solution:<pre class="code" style="margin-top:6px">${esc(round.solution||'')}</pre>`;
   else if(round.type==='logo'){ correctHTML='Answers: '+logoSet().map(it=>`<b>${esc(it.answer)}</b>`).join(', '); }
-  else if(round.type==='logoguess'){ correctHTML='Logos: '+logoPick(round).map(l=>`<b>${esc(l.answer)}</b>`).join(', '); }
+  else if(round.type==='logoguess'){ const total=(round.logos||[]).length; const n=t?logoSolvedCount(round,t.id,G.roundIndex):0;
+    correctHTML=`Your team got <b>${n}/${total}</b> logos.<div class="muted" style="margin-top:8px;font-size:12px;line-height:1.7">`+
+      (round.logos||[]).map(l=>esc(l.answer)).join(', ')+`</div>`; }
   ga.innerHTML=`<span class="pill reveal">ROUND OVER</span>
     <div style="margin-top:10px">${correctHTML}</div>
     <p>Your points: <b>${typeof myPts==='number'?myPts:'—'}</b>
@@ -1701,7 +1734,7 @@ async function restartRound(){
   if(!confirm('Restart round '+(i+1)+' ("'+ROUNDS[i].title+'")? This round\'s scores are cleared so teams can play it again.')) return;
   const keys=Object.keys(STORE).filter(k=>
     k.startsWith('pscore:'+i+':')||k.startsWith('panswer:'+i+':')||k.startsWith('tscore:'+i+':')||
-    k.startsWith('bs:'+i+':')||k.startsWith('rq:'+i+':')||k.startsWith('cb:'+i+':')||k.startsWith('em:'+i+':'));
+    k.startsWith('bs:'+i+':')||k.startsWith('rq:'+i+':')||k.startsWith('cb:'+i+':')||k.startsWith('em:'+i+':')||k.startsWith('lg:'+i+':'));
   await Promise.all(keys.map(k=>apiDel(k)));
   await apiSet('game',{stage:'game',roundIndex:i,phase:'lobby',tStart:0,duration:0});
   beep(660,.1);setTimeout(()=>beep(880,.12),90); poll();

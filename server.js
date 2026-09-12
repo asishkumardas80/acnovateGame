@@ -131,7 +131,7 @@ app.post('/api/reset', (req, res) => {
 app.post('/api/clearScores', (req, res) => {
   for (const k of Object.keys(store)) {
     if (k.startsWith('pscore:') || k.startsWith('panswer:') || k.startsWith('tscore:') ||
-        k.startsWith('bs:') || k.startsWith('rq:') || k.startsWith('cb:') || k.startsWith('em:')) delete store[k];
+        k.startsWith('bs:') || k.startsWith('rq:') || k.startsWith('cb:') || k.startsWith('em:') || k.startsWith('lg:')) delete store[k];
   }
   bump();
   res.json({ ok: true });
