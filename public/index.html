@@ -358,8 +358,8 @@ const ROUNDS = [
     ], answerLine:3,
     explanation:'Line 3: the loop should be i <= n. With i < n it stops one short and misses the final factor.' },
 
-  { id:'r13', type:'logoguess', title:'Logo Guess', duration:280, max:100,
-    prompt:'As a TEAM, guess each logo! One logo every 20 seconds — anyone can spell the brand with the letter tiles to lock it in.',
+  { id:'r13', type:'logoguess', title:'Logo Guess', duration:420, max:100,
+    prompt:'As a TEAM, guess each logo! One logo every 30 seconds — anyone can spell the brand with the letter tiles to lock it in.',
     logos:[
       {img:'logos/github.png',     answer:'GITHUB',     hint:'Where developers host code — the Octocat'},
       {img:'logos/docker.png',     answer:'DOCKER',     hint:'Containers — the friendly whale'},
@@ -408,8 +408,8 @@ const GAME_HELP = {
       pts:'10 points per correct puzzle your team cracks (all 10 = 100). One shared team score.'},
   r12:{how:'Read the code, spot the ONE line with the bug, and tap that line number.',
       pts:'Correct answer scores up to 100 — the sooner you answer, the more you get.'},
-  r13:{how:'A TEAM game! A logo shows for 20 seconds then auto-advances. Anyone on the team taps the letter tiles to spell the brand and lock it in — talk it over in team chat. Each player gets 2 hints total.',
-      ex:'The Figma logo appears — someone taps F-I-G-M-A from the tiles to lock it for the team before the 20 seconds run out.',
+  r13:{how:'A TEAM game! A logo shows for 30 seconds then auto-advances. Anyone on the team taps the letter tiles to spell the brand and lock it in — talk it over in team chat. Each player gets 2 hints total.',
+      ex:'The Figma logo appears — someone taps F-I-G-M-A from the tiles to lock it for the team before the 30 seconds run out.',
       pts:'Points for each logo your team gets right (all of them = 100). One shared team score. Max 2 hints per player.'}
 };
 
@@ -1498,7 +1498,7 @@ function gameLogo(box,round){
 }
 // 13) Logo Guess — TEAM game: all logos, one every LOGO_PER sec (auto-advancing,
 // synced), anyone on the team spells it to lock it. Max 2 hints per player.
-const LOGO_PER=20;            // seconds each logo is shown
+const LOGO_PER=30;            // seconds each logo is shown
 let logoHints=0;              // per-player hint uses this round
 function logoOrder(round){ const pool=round.logos||[]; const rnd=mulberry32((G.tStart||1)+9);
   const idx=[...pool.keys()]; for(let i=idx.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]];}
