@@ -7,15 +7,17 @@ const https = require('https'), http = require('http');
 const N    = parseInt(process.argv[2]) || 60;
 const HOST = process.argv[3] || 'localhost';
 const PORT = parseInt(process.argv[4]) || 3000;
+const CODE = process.argv[5] || process.env.HOST_CODE || 'devrush'; // host passcode
 const TLS  = PORT === 443;
 const lib  = TLS ? https : http;
+let HTOKEN = '';   // filled in after host login (needed for reset/game/teams)
 
 function req(method, path, body) {
   return new Promise((resolve) => {
     const t = Date.now();
     const data = body ? JSON.stringify(body) : null;
     const opts = { host: HOST, port: PORT, path, method,
-      headers: Object.assign({ 'Accept-Encoding': 'gzip' },
+      headers: Object.assign({ 'Accept-Encoding': 'gzip' }, HTOKEN ? { 'X-Host-Token': HTOKEN } : {},
         data ? { 'Content-Type':'application/json', 'Content-Length': Buffer.byteLength(data) } : {}) };
     const r = lib.request(opts, (resp) => {
       let n = 0; resp.on('data', c => n += c.length);
@@ -31,10 +33,25 @@ const stat = (arr) => { if(!arr.length) return {n:0,p50:0,p95:0,max:0,avg:0}; co
   return { n:s.length, min:s[0], p50:q(.5), p95:q(.95), max:s[s.length-1], avg:Math.round(s.reduce((a,b)=>a+b,0)/s.length) }; };
 const line = (label,st,extra='') => console.log(`  ${label.padEnd(26)} n=${st.n}  p50=${st.p50}ms  p95=${st.p95}ms  max=${st.max}ms  avg=${st.avg}ms ${extra}`);
 
+// Log in as host to obtain a token (host-only endpoints need it).
+function login(){
+  return new Promise((resolve)=>{
+    const data=JSON.stringify({code:CODE});
+    const r=lib.request({host:HOST,port:PORT,path:'/api/host-login',method:'POST',
+      headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(data)}},(resp)=>{
+      let b=''; resp.on('data',c=>b+=c); resp.on('end',()=>{ try{HTOKEN=(JSON.parse(b).token)||'';}catch(e){} resolve(resp.statusCode);});
+    });
+    r.on('error',()=>resolve(0)); r.write(data); r.end();
+  });
+}
+
 (async () => {
   console.log(`\n=== DevRush Arena load test: ${N} players vs ${HOST}:${PORT} ===\n`);
   const pids = Array.from({length:N}, (_,i)=>'load_'+i);
   let errors = 0, slow = 0; const bump=(r)=>{ if(r.status===0||r.status>=500) errors++; if(r.ms>1000) slow++; return r; };
+
+  const ls = await login();
+  if(!HTOKEN){ console.log(`  Host login failed (status ${ls}). Pass the passcode: node loadtest.js ${N} ${HOST} ${PORT} <passcode>\n`); return; }
 
   await req('POST','/api/reset');
   await req('POST','/api/storage/game',{value:{stage:'game',roundIndex:3,phase:'playing',tStart:Date.now(),duration:120}});

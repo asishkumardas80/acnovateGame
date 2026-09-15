@@ -226,7 +226,9 @@
    ============================================================================ */
 
 // ---- Configuration ---------------------------------------------------------
-const HOST_CODE = 'devrush';   // host console passcode (change for your event)
+// The host passcode is NOT here — it lives on the server (set HOST_CODE in the
+// environment). The browser never sees it, so it can't be found by inspecting
+// this page. The host enters it once and the server hands back a session token.
 const TEAM_TARGET = 6;         // default people per team (host can change this in the lobby)
 // The host's chosen team size (persists on the host's device). Falls back to TEAM_TARGET.
 let teamTarget = Number(localStorage.getItem('dra_tsize')) || TEAM_TARGET;
@@ -420,13 +422,17 @@ const norm = s => String(s||'').trim().toUpperCase().replace(/\s+/g,' ');
 const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
 const uid = ()=> (crypto.randomUUID?crypto.randomUUID():'p'+Date.now()+Math.random().toString(36).slice(2));
 
+// Host session token (issued by the server after the passcode is verified).
+// Sent on host-only actions; players simply don't have one.
+function htoken(){ return localStorage.getItem('dra_htoken')||''; }
+function hHeaders(extra){ return Object.assign({'X-Host-Token':htoken()}, extra||{}); }
 async function apiGetAll(){ const r=await fetch('/api/all'); return r.json(); }
 async function apiSet(key,value){ return fetch('/api/storage/'+encodeURIComponent(key),
-  {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({value})}); }
-async function apiDel(key){ return fetch('/api/storage/'+encodeURIComponent(key),{method:'DELETE'}); }
-async function apiReset(){ return fetch('/api/reset',{method:'POST'}); }
+  {method:'POST',headers:hHeaders({'Content-Type':'application/json'}),body:JSON.stringify({value})}); }
+async function apiDel(key){ return fetch('/api/storage/'+encodeURIComponent(key),{method:'DELETE',headers:hHeaders()}); }
+async function apiReset(){ return fetch('/api/reset',{method:'POST',headers:hHeaders()}); }
 async function apiUpload(filename,dataUrl){ const r=await fetch('/api/upload',
-  {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename,dataUrl})});
+  {method:'POST',headers:hHeaders({'Content-Type':'application/json'}),body:JSON.stringify({filename,dataUrl})});
   return r.json(); }
 function fileToDataUrl(file){ return new Promise((res,rej)=>{const fr=new FileReader();
   fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(file);}); }
@@ -658,8 +664,17 @@ function routeHostGate(){
       </div>
     </div>`;
   $('#back').onclick=routeLanding;
-  const go=()=>{ if($('#code').value===HOST_CODE) startHost();
-    else { $('#code').style.borderColor='var(--red)'; sndBad(); } };
+  const bad=()=>{ $('#code').style.borderColor='var(--red)'; sndBad(); };
+  const go=async()=>{
+    const code=$('#code').value;
+    try{
+      const r=await fetch('/api/host-login',{method:'POST',
+        headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});
+      const d=await r.json().catch(()=>({}));
+      if(r.ok && d.token){ localStorage.setItem('dra_htoken',d.token); startHost(); }
+      else bad();
+    }catch(e){ bad(); }
+  };
   $('#go').onclick=go;
   $('#code').addEventListener('keydown',e=>{if(e.key==='Enter')go();});
 }
@@ -1739,7 +1754,7 @@ async function backToLobby(){
 // Clear every score/submission. Uses the fast server endpoint, and falls back to
 // per-key deletes if the server hasn't been relaunched with that endpoint yet.
 async function clearScores(){
-  try{ const r=await fetch('/api/clearScores',{method:'POST'}); if(r.ok) return; }catch(e){}
+  try{ const r=await fetch('/api/clearScores',{method:'POST',headers:hHeaders()}); if(r.ok) return; }catch(e){}
   const keys=Object.keys(STORE).filter(k=>
     k.startsWith('pscore:')||k.startsWith('panswer:')||k.startsWith('tscore:'));
   await Promise.all(keys.map(k=>apiDel(k)));
@@ -1905,6 +1920,20 @@ function refreshLogoList(){
 }
 
 // ============================================================================
+//  CASUAL INSPECT DETERRENTS
+//  Note: these only stop casual peeking — no web page can truly block DevTools.
+//  The real protection is that the passcode is server-side, so there is nothing
+//  sensitive to find in this page anyway.
+// ============================================================================
+document.addEventListener('contextmenu', e=>e.preventDefault());
+document.addEventListener('keydown', e=>{
+  const k=(e.key||'').toLowerCase();
+  if(e.key==='F12') { e.preventDefault(); return; }                       // devtools
+  if(e.ctrlKey && k==='u') { e.preventDefault(); return; }                // view-source
+  if((e.ctrlKey||e.metaKey) && e.shiftKey && ['i','j','c'].includes(k)) e.preventDefault(); // devtools
+});
+
+// ============================================================================
 //  BOOT
 // ============================================================================
 (async function(){
@@ -1912,7 +1941,14 @@ function refreshLogoList(){
   // Resume the session on refresh instead of dumping the user back to the landing page.
   const role=localStorage.getItem('dra_role');
   if(role==='player' && MY && MY.pid) startPlayer();
-  else if(role==='host') startHost();
+  else if(role==='host'){
+    // Re-verify the host token (it resets if the server restarted); if it's no
+    // longer valid, ask for the passcode again instead of a broken host screen.
+    let ok=false;
+    try{ const r=await fetch('/api/host-check',{headers:hHeaders()}); ok=(await r.json()).ok; }catch(e){}
+    if(ok) startHost();
+    else { localStorage.removeItem('dra_htoken'); localStorage.removeItem('dra_role'); routeHostGate(); }
+  }
   else routeLanding();
 })();
 </script>

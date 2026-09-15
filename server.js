@@ -5,6 +5,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 let compression = null; try { compression = require('compression'); } catch (e) {}
 
 const app = express();
@@ -12,6 +13,29 @@ if (compression) app.use(compression());   // gzip responses (big win for /api/a
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'data.json');
 const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
+
+// ---- Host authentication ---------------------------------------------------
+// The passcode lives ONLY on the server (set HOST_CODE in the environment; the
+// fallback is for local dev). It is never sent to the browser, so it cannot be
+// found by inspecting the page. A correct passcode gets a random session token;
+// host-only actions (reset, start/build, uploads) require that token.
+const HOST_CODE = process.env.HOST_CODE || 'devrush';
+const hostTokens = new Set();                       // valid tokens (in memory)
+function hostAuthed(req) {
+  const t = req.get('X-Host-Token') || '';
+  return t && hostTokens.has(t);
+}
+// Keys only the host may write/delete. Players write their own player:/pscore:/
+// panswer:/chat: and per-game keys, which stay open so joins/answers never block.
+function isHostKey(key) {
+  return key === 'game' || key === 'teams' ||
+         key.startsWith('tscore:') || key.startsWith('config:');
+}
+function requireHost(req, res) {
+  if (hostAuthed(req)) return true;
+  res.status(401).json({ error: 'host authentication required' });
+  return false;
+}
 
 // Where host-uploaded images (e.g. Logo Guess logos) are stored. Served
 // statically from /uploads because it lives under public/.
@@ -60,10 +84,27 @@ app.use(express.static(path.join(__dirname, 'public'), {
   }
 }));
 
+// Verify the host passcode (checked on the server so it never ships to the
+// browser) and hand back a session token used for host-only actions.
+app.post('/api/host-login', (req, res) => {
+  const code = (req.body && req.body.code) || '';
+  if (code !== HOST_CODE) return res.status(401).json({ ok: false });
+  const token = crypto.randomBytes(24).toString('hex');
+  hostTokens.add(token);
+  res.json({ ok: true, token });
+});
+
+// Is this token still a valid host session? (Used after a page refresh; tokens
+// reset if the server restarts, so the host is asked for the passcode again.)
+app.get('/api/host-check', (req, res) => {
+  res.json({ ok: hostAuthed(req) });
+});
+
 // Image upload for the host (Logo Guess round). The browser sends a data URL
 // as JSON; we decode it and write a file, then return its public URL. No
 // multipart/multer dependency needed.
 app.post('/api/upload', (req, res) => {
+  if (!requireHost(req, res)) return;
   try {
     const { filename, dataUrl } = req.body || {};
     const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(dataUrl || '');
@@ -104,23 +145,28 @@ app.get('/api/storage/:key', (req, res) => {
 });
 
 // Write a single key. Accepts either { "value": <anything> } or a raw body.
+// Host-only keys (game/teams/tscore:/config:) require a valid host token.
 app.post('/api/storage/:key', (req, res) => {
   const key = req.params.key;
+  if (isHostKey(key) && !requireHost(req, res)) return;
   const body = req.body || {};
   store[key] = ('value' in body) ? body.value : body;
   bump();
   res.json({ ok: true, key, value: store[key] });
 });
 
-// Delete a single key.
+// Delete a single key. Host-only keys require a valid host token.
 app.delete('/api/storage/:key', (req, res) => {
-  delete store[req.params.key];
+  const key = req.params.key;
+  if (isHostKey(key) && !requireHost(req, res)) return;
+  delete store[key];
   bump();
   res.json({ ok: true });
 });
 
 // Wipe everything (host "Reset" uses this).
 app.post('/api/reset', (req, res) => {
+  if (!requireHost(req, res)) return;
   store = {};
   bump();
   res.json({ ok: true });
@@ -129,6 +175,7 @@ app.post('/api/reset', (req, res) => {
 // Clear only the scores (host "Restart Game") — keeps players, teams and logos
 // so the same teams can play again from round 1.
 app.post('/api/clearScores', (req, res) => {
+  if (!requireHost(req, res)) return;
   for (const k of Object.keys(store)) {
     if (k.startsWith('pscore:') || k.startsWith('panswer:') || k.startsWith('tscore:') ||
         k.startsWith('bs:') || k.startsWith('rq:') || k.startsWith('cb:') || k.startsWith('em:') || k.startsWith('lg:')) delete store[k];
