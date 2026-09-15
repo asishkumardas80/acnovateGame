@@ -409,7 +409,7 @@ const GAME_HELP = {
   r5:{how:'Unscramble as many of the 10 tech terms as you can in 60 seconds. Type a word and hit ✓ (or Enter) to lock it in. Use ◀ Back / Next ▶ to move between words — jump around freely.',
       pts:'10 points per word you unscramble correctly (10 words = up to 100). Scores save automatically when time runs out.'},
   r6:{how:'A TEAM game! Your team shares one vault with one digit slot per member. You get YOUR OWN riddle — solve it, type your single digit, and hit "Lock in". Your slot turns green if correct (red to retry). The vault unlocks automatically once every teammate’s digit is right. Watch the vault fill live and help each other in chat!',
-      ex:'3-person team → Ana solves "two squared" = 4, Ben solves "half of twelve" = 6, Cara solves "three squared" = 9. Each types just their own digit; when all three are green the vault (469) unlocks.',
+      ex:'3-person team → Ana solves "two squared" = 4, Ben solves "three factorial (3!)" = 6, Cara solves "three squared" = 9. Each types just their own digit; when all three are green the vault (469) unlocks.',
       pts:'Full unlock = 60 points + a time bonus up to 40 (max 100) — faster is better. Partial credit if you don’t finish: points for each correct digit.'},
   r7:{how:'A TEAM game! Everyone sees the same question at the same time. Each question lasts 20 seconds then auto-advances. Talk it over in team chat, then anyone taps the team’s answer — it locks (green if right, red if wrong) for everyone.',
       ex:'15 questions across 💻 Developer, 🌍 General Knowledge and 🧠 IQ/Logic. Answer within 20 seconds — if no one answers in time, it moves on and that question scores 0.',
@@ -1158,80 +1158,58 @@ function refreshBrainstorm(){
 // 6) Code Breakers — code length = team size; each member solves a RIDDLE for
 // their digit; each team gets a different shuffled assignment.
 const RIDDLES=[
-  // each riddle resolves to a single digit 0–9; tuned to make people think
+  // Java (☕) + Math only. Each resolves to a single digit 0–9; two of each type
+  // per digit so every code stays crackable and every digit is well covered.
   // --- 0 ---
   {text:'The number of real solutions to x² + 1 = 0.', a:'0'},
-  {text:'cos(90°), rounded to a whole number.', a:'0'},
   {text:'The remainder when 49 is divided by 7.', a:'0'},
+  {text:'☕ The default value of an uninitialised int field in Java.', a:'0'},
+  {text:'☕ The result of 100 % 10 in Java.', a:'0'},
   // --- 1 ---
   {text:'0! (zero factorial) equals this.', a:'1'},
-  {text:'sin(90°).', a:'1'},
   {text:'The greatest common divisor of 8 and 15.', a:'1'},
-  {text:'Any non-zero number divided by itself.', a:'1'},
+  {text:'☕ The result of 10 % 3 in Java.', a:'1'},
+  {text:'☕ The number of parameters in public static void main(String[] args).', a:'1'},
   // --- 2 ---
   {text:'The only even prime number.', a:'2'},
   {text:'log base 2 of 4.', a:'2'},
-  {text:'The number of real solutions to x² = 9.', a:'2'},
+  {text:'☕ How many possible values does a boolean have?', a:'2'},
+  {text:'☕ The number of bytes in a Java char.', a:'2'},
   // --- 3 ---
   {text:'The cube root of twenty-seven.', a:'3'},
-  {text:'The digit sum of the number 120.', a:'3'},
   {text:'How many prime numbers are there below 6?', a:'3'},
-  {text:'3! divided by 2.', a:'3'},
+  {text:'☕ int x = 7 / 2;  — the value of x.', a:'3'},
+  {text:'☕ The result of 7 & 3 in Java (bitwise AND).', a:'3'},
   // --- 4 ---
   {text:'Two squared.', a:'4'},
   {text:'The smallest composite number.', a:'4'},
-  {text:'The number of faces on a tetrahedron.', a:'4'},
-  {text:'The number of bits in a nibble.', a:'4'},
+  {text:'☕ "Java".length() returns this.', a:'4'},
+  {text:'☕ The number of bytes in a Java int.', a:'4'},
   // --- 5 ---
   {text:'The number of Platonic solids.', a:'5'},
-  {text:'Binary 101 in decimal.', a:'5'},
-  {text:'The number of vowels in the English alphabet.', a:'5'},
   {text:'The next number: 1, 1, 2, 3, __ (Fibonacci).', a:'5'},
+  {text:'☕ "HELLO".length() returns this.', a:'5'},
+  {text:'☕ int[] a = {1,2,3,4,5}; a.length is…', a:'5'},
   // --- 6 ---
   {text:'The smallest perfect number (its divisors add up to itself).', a:'6'},
-  {text:'The number of faces on a cube.', a:'6'},
   {text:'Three factorial (3!).', a:'6'},
-  {text:'Half of twelve.', a:'6'},
+  {text:'☕ Math.abs(-6) in Java.', a:'6'},
+  {text:'☕ The result of 4 | 2 in Java (bitwise OR).', a:'6'},
   // --- 7 ---
   {text:'Two cubed, minus one.', a:'7'},
   {text:'The number of colours in a rainbow (ROYGBIV).', a:'7'},
-  {text:'A prime number, and the count of days in a week.', a:'7'},
+  {text:'☕ The result of 5 | 2 in Java (bitwise OR).', a:'7'},
+  {text:'☕ The result of 3 ^ 4 in Java (bitwise XOR).', a:'7'},
   // --- 8 ---
   {text:'Two cubed.', a:'8'},
-  {text:'How many bits are in a byte?', a:'8'},
   {text:'The number of vertices (corners) on a cube.', a:'8'},
-  {text:'How many legs does a spider have?', a:'8'},
+  {text:'☕ The number of primitive data types in Java.', a:'8'},
+  {text:'☕ The result of 1 << 3 in Java (bit shift).', a:'8'},
   // --- 9 ---
   {text:'The square root of eighty-one.', a:'9'},
   {text:'Three squared.', a:'9'},
-  {text:'The number of innings in a standard baseball game.', a:'9'},
-  {text:'The largest number expressible with a single digit.', a:'9'},
-  // --- 🎬 movies ---
-  {text:'🎬 "The Magnificent ___" — the number in the classic Western title.', a:'7'},
-  {text:'🎬 "District ___" — the sci-fi film about aliens in Johannesburg.', a:'9'},
-  {text:'🎬 "The Hateful ___" — Tarantino’s snowbound Western.', a:'8'},
-  {text:'🎬 "3 Idiots" — the number in this Bollywood hit’s title.', a:'3'},
-  {text:'🎬 The number of Infinity Stones in the Marvel films.', a:'6'},
-  {text:'🎬 "Kill Bill: Vol. ___" — the first film in the pair.', a:'1'},
-  // --- 🏏 cricket ---
-  {text:'🏏 Runs scored for clearing the boundary on the full.', a:'6'},
-  {text:'🏏 Runs for a boundary hit along the ground.', a:'4'},
-  {text:'🏏 The number of stumps at one end of the pitch.', a:'3'},
-  {text:'🏏 The number of bails resting on top of the stumps.', a:'2'},
-  {text:'🏏 Players in a cricket team, minus two.', a:'9'},
-  {text:'🏏 The jersey number famously worn by M.S. Dhoni.', a:'7'},
-  // --- ☕ java ---
-  {text:'☕ The default value of an uninitialised int field in Java.', a:'0'},
-  {text:'☕ The result of 10 % 3 in Java.', a:'1'},
-  {text:'☕ How many possible values does a boolean have?', a:'2'},
-  {text:'☕ The number of primitive data types in Java.', a:'8'},
-  {text:'☕ "HELLO".length() returns this.', a:'5'},
-  {text:'☕ int x = 7 / 2;  — the value of x.', a:'3'},
-  // --- 🧠 brain teasers ---
-  {text:'🧠 I am odd; remove one letter and I become even. Which number am I? (spell it out)', a:'7'},
-  {text:'🧠 Which digit’s English name has exactly that many letters? (e.g. F-O-U-R)', a:'4'},
-  {text:'🧠 "A stitch in time saves ___."', a:'9'},
-  {text:'🧠 How many months have exactly 28 days in a common year?', a:'1'}
+  {text:'☕ Integer.parseInt("9") returns this.', a:'9'},
+  {text:'☕ (int) Math.sqrt(81) in Java.', a:'9'}
 ];
 function hashStr(s){ let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return h; }
 // Deterministic per-team riddle assignment (shuffled differently for each team).
