@@ -52,6 +52,17 @@
   .pill.lobby{background:rgba(124,91,255,.15);color:#6a45e6;border-color:rgba(124,91,255,.4)}
   .pill.reveal{background:rgba(244,180,0,.18);color:#b07a00;border-color:rgba(244,180,0,.45)}
   .big{font-size:clamp(28px,6vw,54px);font-weight:800;letter-spacing:.5px}
+  /* live participant counter */
+  .counter{display:flex;flex-direction:column;align-items:center;line-height:1;
+    background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:8px 16px;min-width:74px}
+  .counter .cnum{font-size:34px;font-weight:900;color:var(--accent);font-variant-numeric:tabular-nums}
+  .counter .clbl{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-top:2px}
+  /* foundation-day banner */
+  .foundation{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .foundation .colog{max-height:72px;width:auto;object-fit:contain}
+  .foundation .fday{font-size:clamp(18px,4vw,30px);font-weight:900;letter-spacing:.3px;
+    background:linear-gradient(90deg,#7c5bff,#ff5470,#ff8f3b,#37d67a);-webkit-background-clip:text;
+    background-clip:text;color:transparent;text-align:center;padding:4px 0}
   .timer{font-variant-numeric:tabular-nums;font-weight:800}
   .timer.low{color:var(--red)}
   .hidden{display:none!important}
@@ -215,7 +226,9 @@
 
 // ---- Configuration ---------------------------------------------------------
 const HOST_CODE = 'devrush';   // host console passcode (change for your event)
-const TEAM_TARGET = 6;         // aim for this many people per team
+const TEAM_TARGET = 6;         // default people per team (host can change this in the lobby)
+// The host's chosen team size (persists on the host's device). Falls back to TEAM_TARGET.
+let teamTarget = Number(localStorage.getItem('dra_tsize')) || TEAM_TARGET;
 
 const AVATARS = ['🦊','🚀','🐉','🦄','🐼','🦁','🐯','🐸','🐙','🦉','🐺','🐝','🦈','🐢',
   '🦕','🐧','🦖','🐬','🦩','🐨','🦥','🐳','🦇','🐌','🦋','🐰','🐷','🐵','🦓','🦒','🐲','🦅',
@@ -581,7 +594,11 @@ function routeLanding(){
   ROLE=null;
   localStorage.removeItem('dra_role');   // explicit exit ends the resumable session
   app.innerHTML = `
-    <div class="card center" style="margin-top:8vh">
+    <div class="foundation center" style="margin-top:6vh">
+      <img src="logo-company.png" alt="" class="colog" onerror="this.style.display='none'"/>
+      <div class="fday">🎉 Happy Foundation Day 🎉</div>
+    </div>
+    <div class="card center" style="margin-top:16px">
       <div class="big brand">DEVRUSH ARENA</div>
       <p class="muted">Live multiplayer team-building — 12 mini-games, one champion.</p>
       <div class="row" style="justify-content:center;margin-top:18px">
@@ -747,15 +764,17 @@ function buildPlayerLobby(){
       <p class="muted">Teams are picked randomly by the host. Sit tight — the game will start soon.</p>
     </div>
     <div class="card">
-      <div class="row" style="justify-content:space-between">
-        <h3>In the lobby</h3><span class="pill" id="cnt">0 joined</span></div>
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h3>In the lobby</h3>
+        <div class="counter"><span class="cnum" id="cntbig">0</span><span class="clbl">joined</span></div>
+      </div>
       <div class="people" id="people"></div>
     </div>`;
   $('#leave').onclick=()=>{clearInterval(pollTimer);lastKey='';routeLanding();};
 }
 function refreshLobbyPlayer(){
-  const ppl=allPlayers(); const g=$('#people'); const c=$('#cnt');
-  if(c) c.textContent=ppl.length+' joined';
+  const ppl=allPlayers(); const g=$('#people'); const c=$('#cntbig');
+  if(c) c.textContent=ppl.length;
   if(g) g.innerHTML=ppl.map(p=>`<div class="person">${avatarHTML(p)}
     <span class="nm">${esc(p.name)}${p.pid===MY.pid?' (you)':''}</span></div>`).join('');
 }
@@ -1633,29 +1652,40 @@ function buildHostLobby(){
       <button class="ghost" id="leave">Exit</button>
     </div>
     <div class="card">
-      <div class="row" style="justify-content:space-between">
-        <h3>Lobby — everyone who has joined</h3><span class="pill" id="cnt">0</span></div>
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h3>Lobby — everyone who has joined</h3>
+        <div class="counter"><span class="cnum" id="cntbig">0</span><span class="clbl">in lobby</span></div>
+      </div>
       <div class="people" id="people"></div>
-      <div class="row" style="margin-top:14px">
+      <div class="row" style="margin-top:14px;align-items:center">
+        <label class="muted" style="font-size:13px">Team size
+          <select id="tsize" style="margin-left:6px">
+            ${[3,4,5,6,7,8].map(n=>`<option value="${n}" ${n===teamTarget?'selected':''}>${n} / team</option>`).join('')}
+          </select>
+        </label>
         <button class="ok" id="build">${built?'🔀 Reshuffle teams':'👥 Build Teams'}</button>
         ${built?`<button id="start">🚀 Start Game</button>`:''}
         ${built?`<button class="ghost" id="restart">🔁 Restart game (all scores)</button>`:''}
         <span class="grow"></span>
         <button class="warn" id="reset">Reset everything</button>
       </div>
-      <p class="muted" style="font-size:12px;margin-top:6px">Teams are random and balanced (~${TEAM_TARGET}/team). Players see their team only when the game starts.</p>
+      <p class="muted" style="font-size:12px;margin-top:6px" id="tnote">With <b>${teamTarget}</b> per team, <b id="tcalc">0</b> players ≈ <b id="tteams">0</b> teams. Random & balanced; players see their team only when the game starts.</p>
     </div>
     <div id="teampreview"></div>`;
   $('#leave').onclick=()=>{clearInterval(pollTimer);lastKey='';routeLanding();};
   $('#build').onclick=buildTeams;
+  const ts=$('#tsize'); if(ts) ts.onchange=()=>{ teamTarget=Number(ts.value); localStorage.setItem('dra_tsize',teamTarget); refreshHostLobby(); };
   const st=$('#start'); if(st) st.onclick=startGame;
   const rs=$('#restart'); if(rs) rs.onclick=restartGame;
   $('#reset').onclick=async()=>{ if(confirm('Wipe everyone, teams and scores?')){
     await apiReset(); await apiSet('game',defaultGame()); poll(); }};
 }
 function refreshHostLobby(){
-  const ppl=allPlayers(); const g=$('#people'),c=$('#cnt');
-  if(c) c.textContent=ppl.length+' joined';
+  const ppl=allPlayers(); const g=$('#people'),c=$('#cntbig');
+  if(c) c.textContent=ppl.length;
+  const est=clamp(Math.round(ppl.length/teamTarget),ppl.length?1:0,TEAM_POOL.length);
+  const tn=$('#tnote'); if(tn){ const a=$('#tcalc'),b=$('#tteams'),d=tn.querySelector('b');
+    if(d) d.textContent=teamTarget; if(a) a.textContent=ppl.length; if(b) b.textContent=est; }
   if(g) g.innerHTML= ppl.length? ppl.map(p=>`<div class="person">${avatarHTML(p)}
       <span class="nm">${esc(p.name)}</span>
       <button class="x" data-pid="${esc(p.pid)}" title="remove">✕</button></div>`).join('')
@@ -1675,7 +1705,7 @@ async function buildTeams(){
   const ppl=allPlayers();
   if(ppl.length<2){ alert('Need at least 2 players to build teams.'); return; }
   const shuffled=[...ppl].sort(()=>Math.random()-0.5);
-  const k=clamp(Math.round(ppl.length/TEAM_TARGET),1,TEAM_POOL.length);
+  const k=clamp(Math.round(ppl.length/teamTarget),1,TEAM_POOL.length);
   const pool=[...TEAM_POOL].sort(()=>Math.random()-0.5).slice(0,k);
   const teams=pool.map((meta,i)=>({id:'t'+i,name:meta.name,color:meta.color,pids:[]}));
   shuffled.forEach((p,i)=>teams[i%k].pids.push(p.pid)); // round-robin => balanced
