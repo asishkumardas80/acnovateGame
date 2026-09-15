@@ -58,9 +58,10 @@
   .counter .cnum{font-size:34px;font-weight:900;color:var(--accent);font-variant-numeric:tabular-nums}
   .counter .clbl{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-top:2px}
   /* foundation-day banner */
-  .foundation{display:flex;flex-direction:column;align-items:center;gap:10px}
-  .foundation .colog{max-height:72px;width:auto;object-fit:contain}
-  .foundation .fday{font-size:clamp(18px,4vw,30px);font-weight:900;letter-spacing:.3px;
+  .banner-wrap{max-width:760px;margin:0 auto;text-align:center}
+  .banner{width:100%;height:auto;display:block;border-radius:16px;
+    box-shadow:0 10px 30px rgba(20,40,90,.12);border:1px solid var(--line)}
+  .fday{font-size:clamp(18px,4vw,30px);font-weight:900;letter-spacing:.3px;
     background:linear-gradient(90deg,#7c5bff,#ff5470,#ff8f3b,#37d67a);-webkit-background-clip:text;
     background-clip:text;color:transparent;text-align:center;padding:4px 0}
   .timer{font-variant-numeric:tabular-nums;font-weight:800}
@@ -594,9 +595,9 @@ function routeLanding(){
   ROLE=null;
   localStorage.removeItem('dra_role');   // explicit exit ends the resumable session
   app.innerHTML = `
-    <div class="foundation center" style="margin-top:6vh">
-      <img src="logo-company.png" alt="" class="colog" onerror="this.style.display='none'"/>
-      <div class="fday">🎉 Happy Foundation Day 🎉</div>
+    <div class="banner-wrap" style="margin-top:5vh">
+      <img src="banner.png" alt="Acnovate — Happy Foundation Day · Bigger Together" class="banner"
+           onerror="this.parentNode.innerHTML='<div class=\'fday\'>🎉 Happy Foundation Day 🎉</div>'"/>
     </div>
     <div class="card center" style="margin-top:16px">
       <div class="big brand">DEVRUSH ARENA</div>
