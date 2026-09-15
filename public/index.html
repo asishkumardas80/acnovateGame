@@ -207,8 +207,15 @@
   .flash{animation:flash .6s}
   @keyframes flash{0%{background:rgba(55,214,122,.35)}100%{background:transparent}}
   .roundlist{display:flex;gap:6px;flex-wrap:wrap}
-  .roundlist button{padding:6px 10px;font-size:12px;background:var(--panel2);border:1px solid var(--line)}
-  .roundlist button.cur{background:var(--accent);border-color:var(--accent)}
+  .roundlist button{padding:6px 10px;font-size:12px;background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
+  /* team games get a teal left-edge, individual games a purple one */
+  .roundlist button.tm{border-left:4px solid #12b3a6}
+  .roundlist button.solo{border-left:4px solid #7c5bff}
+  .roundlist button.cur{background:var(--accent);border-color:var(--accent);color:#fff}
+  /* game-type badge */
+  .gk{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.4px;vertical-align:middle}
+  .gk-team{background:rgba(18,179,166,.16);color:#0e8f86;border:1px solid rgba(18,179,166,.5)}
+  .gk-solo{background:rgba(124,91,255,.14);color:#6a45e6;border:1px solid rgba(124,91,255,.4)}
   a.link{color:var(--accent)}
 </style>
 </head>
@@ -815,7 +822,8 @@ function buildPlayerGame(){
         <div class="row" style="justify-content:space-between">
           <div><span class="pill ${G.phase==='playing'?'live':G.phase==='reveal'?'reveal':'lobby'}">
             ${G.phase==='playing'?'LIVE':G.phase.toUpperCase()}</span>
-            <span class="muted"> Round ${G.roundIndex+1}/${ROUNDS.length}</span></div>
+            <span class="muted"> Round ${G.roundIndex+1}/${ROUNDS.length}</span>
+            ${gameKindBadge(round)}</div>
           <div class="timer big" style="font-size:34px">0:00</div>
         </div>
         <h2 style="margin-top:10px">${esc(round.title)}</h2>
@@ -848,14 +856,25 @@ function buildPlayerGame(){
 
 // Shared "how to play + points + time" card, used on the player ready screen
 // AND on the host console so the host can brief everyone.
+// Which games the whole team plays together for ONE shared score, vs. games
+// each person plays alone (team score = average). Single source of truth.
+const TEAM_TYPES = ['codebreak','relay','logoguess','brainstorm','emoji'];
+function isTeamGame(round){ return TEAM_TYPES.includes(round.type); }
+function gameKindBadge(round){ return isTeamGame(round)
+  ? '<span class="gk gk-team">👥 TEAM GAME</span>'
+  : '<span class="gk gk-solo">🙋 INDIVIDUAL</span>'; }
+
 function helpCardHTML(round){
   const h=GAME_HELP[round.id]||{how:round.prompt||'',pts:'Up to 100 points.'};
   const m=Math.floor(round.duration/60), s=round.duration%60;
   const time=(m?m+' min ':'')+(s?s+' sec':'');
-  const teamNote = ['codebreak','brainstorm','relay','emoji'].includes(round.type)
-    ? 'one <b>shared team score</b>.'
-    : "your team's score is the <b>average</b> of all members' points.";
+  const team=isTeamGame(round);
+  const teamNote = team
+    ? 'the whole team plays together for <b>one shared team score</b>.'
+    : "everyone plays on their own device — your team's score is the <b>average</b> of all members' points.";
   return `<div class="howto">
+    <div class="hrow"><span class="hicon">${team?'👥':'🙋'}</span><div><div class="hlbl">Game type</div>
+      <div>${gameKindBadge(round)} — ${team?'play as a team':'play individually'}</div></div></div>
     <div class="hrow"><span class="hicon">🎮</span><div><div class="hlbl">How to play</div>
       <div>${esc(h.how)}</div></div></div>
     ${h.ex?`<div class="hrow"><span class="hicon">📝</span><div><div class="hlbl">Example</div>
@@ -1802,7 +1821,7 @@ async function restartGame(){
 // ---- Host: game ------------------------------------------------------------
 function buildHostGameShell(){
   const round=ROUNDS[G.roundIndex];
-  const roundBtns=ROUNDS.map((r,i)=>`<button class="${i===G.roundIndex?'cur':''}" data-i="${i}">${i+1}</button>`).join('');
+  const roundBtns=ROUNDS.map((r,i)=>`<button class="${i===G.roundIndex?'cur':''} ${isTeamGame(r)?'tm':'solo'}" data-i="${i}" title="${isTeamGame(r)?'Team game':'Individual'}">${i+1}</button>`).join('');
   app.innerHTML=`
     <div class="row" style="justify-content:space-between;margin-bottom:12px">
       <div><span class="brand" style="font-size:20px;font-weight:900">DEVRUSH</span><span class="pill">HOST</span></div>
@@ -1812,7 +1831,8 @@ function buildHostGameShell(){
       <div class="row" style="justify-content:space-between">
         <div><span class="pill ${G.phase==='playing'?'live':G.phase==='reveal'?'reveal':'lobby'}">
           ${G.phase==='playing'?'LIVE':G.phase.toUpperCase()}</span>
-          <span class="muted"> Round ${G.roundIndex+1}/${ROUNDS.length} · ${esc(round.type)}</span></div>
+          <span class="muted"> Round ${G.roundIndex+1}/${ROUNDS.length}</span>
+          ${gameKindBadge(round)}</div>
         <div class="timer big" style="font-size:38px">0:00</div>
       </div>
       <h2 style="margin-top:8px">${esc(round.title)}</h2>
@@ -1827,6 +1847,9 @@ function buildHostGameShell(){
         <button class="warn" id="reset">Reset</button>
       </div>
       <div class="roundlist" style="margin-top:12px">${roundBtns}</div>
+      <p class="muted" style="font-size:12px;margin-top:8px">
+        <span class="gk gk-team">👥 TEAM GAME</span> = whole team, one shared score &nbsp;·&nbsp;
+        <span class="gk gk-solo">🙋 INDIVIDUAL</span> = each person plays, team score = average</p>
     </div>
     <div class="card">
       <h3>📋 Brief the players — how this game works</h3>
