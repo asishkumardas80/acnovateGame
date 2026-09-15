@@ -52,6 +52,7 @@
   .pill.lobby{background:rgba(124,91,255,.15);color:#6a45e6;border-color:rgba(124,91,255,.4)}
   .pill.reveal{background:rgba(244,180,0,.18);color:#b07a00;border-color:rgba(244,180,0,.45)}
   .big{font-size:clamp(28px,6vw,54px);font-weight:800;letter-spacing:.5px}
+  #sword.solved{color:var(--green)}
   /* live participant counter */
   .counter{display:flex;flex-direction:column;align-items:center;line-height:1;
     background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:8px 16px;min-width:74px}
@@ -287,7 +288,7 @@ const ROUNDS = [
     options:['2-4-6','1-2-3','[2,4,6]','246'], answerIndex:0 },
 
   { id:'r5', type:'scramble', title:'Word Scramble', duration:60, max:100,
-    prompt:'Unscramble as many tech terms as you can in 60 seconds! Type the word and press Enter. Stuck? Skip it.',
+    prompt:'Unscramble as many tech terms as you can in 60 seconds! Type a word and hit ✓ to lock it in. Use ◀ Back / Next ▶ to jump between words.',
     words:['LOOP','ARRAY','CLASS','DEBUG','CLOUD','SERVER','PYTHON','BROWSER','COMPILER','FUNCTION'] },
 
   { id:'r6', type:'codebreak', title:'Code Breakers', duration:360, max:100,
@@ -389,8 +390,8 @@ const GAME_HELP = {
       pts:'Score = the % of test cases your code passes (up to 100).'},
   r4:{how:'Read the code snippet and pick what it prints to the console.',
       pts:'Correct answer scores up to 100 — the sooner you answer, the more you get.'},
-  r5:{how:'Unscramble as many tech terms as you can in 60 seconds — type each and press Enter. Skip any that stump you.',
-      pts:'10 points per word you unscramble correctly (10 words = up to 100).'},
+  r5:{how:'Unscramble as many of the 10 tech terms as you can in 60 seconds. Type a word and hit ✓ (or Enter) to lock it in. Use ◀ Back / Next ▶ to move between words — jump around freely.',
+      pts:'10 points per word you unscramble correctly (10 words = up to 100). Scores save automatically when time runs out.'},
   r6:{how:'A TEAM game! Each teammate gets a riddle whose answer is one digit of the team code (code length = number of members). Solve your riddle, share your digit in chat, and anyone enters the combined code to unlock.',
       ex:'3-person team → Ana (#1) solves "sides of a triangle" = 3, Ben (#2) solves "half of twelve" = 6, Cara (#3) solves "days in a week" = 7 → combine in order = code 367.',
       pts:'Unlocking earns 60 points, PLUS a time bonus of up to 40 more the faster you crack it (max 100). Unlock early to beat rival teams!'},
@@ -1037,35 +1038,53 @@ function gameScramble(box,round){
   const words=(round.words||[]).slice(0,10).map(w=>w.toUpperCase());
   const rnd=mulberry32((G.tStart||1)+3);
   const scrambled=words.map(w=>scramble(w,rnd));
-  let idx=0, solved=0;
+  const N=words.length;
+  const solvedSet=new Set();       // indices already locked in
+  const typed=new Array(N).fill(''); // remembers in-progress typing per word
+  let cur=0;
   box.innerHTML=`
     <div class="row" style="justify-content:space-between">
       <span class="muted" id="sprog"></span><span class="ptsbadge" id="spts" data-v="0">⭐ 0 pts</span></div>
     <div class="big center" id="sword" style="letter-spacing:8px;margin:16px 0"></div>
     <input id="sans" placeholder="Type the word…" autocomplete="off" autocapitalize="characters" spellcheck="false"/>
-    <div class="row" style="margin-top:10px">
-      <button id="sskip" class="ghost">Skip ▶</button>
-      <span class="muted" id="smsg"></span></div>`;
-  const wEl=$('#sword',box), inp=$('#sans',box), prog=$('#sprog',box), pb=$('#spts',box), msg=$('#smsg',box), skip=$('#sskip',box);
-  function paint(){
-    const score=Math.round(solved/words.length*100), old=+pb.dataset.v||0;
+    <div class="row" style="margin-top:12px">
+      <button id="sback" class="ghost">◀ Back</button>
+      <button id="scheck" class="ok">✓ Submit answer</button>
+      <button id="snext" class="ghost">Next ▶</button>
+      <span class="grow"></span><span class="muted" id="smsg"></span></div>`;
+  const wEl=$('#sword',box), inp=$('#sans',box), prog=$('#sprog',box), pb=$('#spts',box),
+        msg=$('#smsg',box), back=$('#sback',box), next=$('#snext',box), chk=$('#scheck',box);
+  function updPts(){ const score=Math.round(solvedSet.size/N*100), old=+pb.dataset.v||0;
     pb.textContent='⭐ '+score+' pts'; pb.dataset.v=score;
-    if(score>old){pb.classList.remove('pulse');void pb.offsetWidth;pb.classList.add('pulse');}
-    if(idx>=words.length){ wEl.textContent='All done! 🎉'; inp.disabled=true; skip.disabled=true;
-      prog.textContent='solved '+solved+' / '+words.length; msg.textContent='Submitting…';
+    if(score>old){pb.classList.remove('pulse');void pb.offsetWidth;pb.classList.add('pulse');} }
+  function save(){ if(!inp.disabled) typed[cur]=inp.value; }
+  function paint(){
+    updPts();
+    if(solvedSet.size>=N){ wEl.textContent='All done! 🎉'; inp.disabled=true;
+      back.disabled=next.disabled=chk.disabled=true;
+      prog.textContent='solved '+N+' / '+N; msg.textContent='Submitting…';
       setTimeout(()=>submitActiveGame(false),350); return; }
-    wEl.textContent=scrambled[idx]; prog.textContent='Word '+(idx+1)+' / '+words.length+' · solved '+solved;
-    inp.value=''; inp.focus();
+    wEl.textContent=scrambled[cur];
+    prog.textContent='Word '+(cur+1)+' / '+N+' · solved '+solvedSet.size;
+    back.disabled=(cur===0); next.disabled=(cur===N-1);
+    const done=solvedSet.has(cur);
+    inp.disabled=done; chk.disabled=done;
+    if(done){ inp.value=words[cur]; wEl.classList.add('solved'); chk.textContent='✓ solved'; msg.textContent='✓ solved'; }
+    else{ inp.value=typed[cur]||''; wEl.classList.remove('solved'); chk.textContent='✓ Submit answer'; msg.textContent=''; inp.focus(); }
   }
   function check(){
-    if(norm(inp.value)===words[idx]){ solved++; sndGood(); beep(1050,.06); msg.textContent='✓ correct!'; idx++; paint(); }
-    else { msg.textContent='Not quite — try again or Skip.'; inp.select(); }
+    if(solvedSet.has(cur)) return;
+    if(norm(inp.value)===words[cur]){ solvedSet.add(cur); sndGood(); beep(1050,.06);
+      if(solvedSet.size>=N){ paint(); return; }
+      msg.textContent='✓ correct!'; paint(); }
+    else { msg.textContent='Not quite — try again.'; inp.select(); }
   }
   inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();check();}});
-  skip.onclick=()=>{ idx++; msg.textContent=''; paint(); };
-  submitBtn(box);
+  chk.onclick=check;
+  back.onclick=()=>{ save(); if(cur>0){cur--; paint();} };
+  next.onclick=()=>{ save(); if(cur<N-1){cur++; paint();} };
   paint();
-  activeGame.finalize=()=>({score:Math.round(solved/words.length*100), display:solved+'/'+words.length+' words'});
+  activeGame.finalize=()=>({score:Math.round(solvedSet.size/N*100), display:solvedSet.size+'/'+N+' words'});
 }
 // 6) Team Brainstorm — the whole team fills ONE shared list; team-scored.
 function gameBrainstorm(box,round){
