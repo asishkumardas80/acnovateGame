@@ -409,7 +409,7 @@ const GAME_HELP = {
   r5:{how:'Unscramble as many of the 10 tech terms as you can in 60 seconds. Type a word and hit ✓ (or Enter) to lock it in. Use ◀ Back / Next ▶ to move between words — jump around freely.',
       pts:'10 points per word you unscramble correctly (10 words = up to 100). Scores save automatically when time runs out.'},
   r6:{how:'A TEAM game! Your team shares one vault with one digit slot per member. You get YOUR OWN riddle — solve it, type your single digit, and hit "Lock in". Your slot turns green if correct (red to retry). The vault unlocks automatically once every teammate’s digit is right. Watch the vault fill live and help each other in chat!',
-      ex:'3-person team → Ana solves "sides of a triangle" = 3, Ben solves "half of twelve" = 6, Cara solves "days in a week" = 7. Each types just their own digit; when all three are green the vault (367) unlocks.',
+      ex:'3-person team → Ana solves "two squared" = 4, Ben solves "half of twelve" = 6, Cara solves "three squared" = 9. Each types just their own digit; when all three are green the vault (469) unlocks.',
       pts:'Full unlock = 60 points + a time bonus up to 40 (max 100) — faster is better. Partial credit if you don’t finish: points for each correct digit.'},
   r7:{how:'A TEAM game! Everyone sees the same question at the same time. Each question lasts 20 seconds then auto-advances. Talk it over in team chat, then anyone taps the team’s answer — it locks (green if right, red if wrong) for everyone.',
       ex:'15 questions across 💻 Developer, 🌍 General Knowledge and 🧠 IQ/Logic. Answer within 20 seconds — if no one answers in time, it moves on and that question scores 0.',
@@ -1158,50 +1158,54 @@ function refreshBrainstorm(){
 // 6) Code Breakers — code length = team size; each member solves a RIDDLE for
 // their digit; each team gets a different shuffled assignment.
 const RIDDLES=[
-  // each riddle resolves to a single digit 0–9
+  // each riddle resolves to a single digit 0–9; tuned to make people think
+  // --- 0 ---
+  {text:'The number of real solutions to x² + 1 = 0.', a:'0'},
+  {text:'cos(90°), rounded to a whole number.', a:'0'},
+  {text:'The remainder when 49 is divided by 7.', a:'0'},
+  // --- 1 ---
+  {text:'0! (zero factorial) equals this.', a:'1'},
+  {text:'sin(90°).', a:'1'},
+  {text:'The greatest common divisor of 8 and 15.', a:'1'},
+  {text:'Any non-zero number divided by itself.', a:'1'},
+  // --- 2 ---
   {text:'The only even prime number.', a:'2'},
-  {text:'How many bits are in a byte?', a:'8'},
-  {text:'The number of sides on a triangle.', a:'3'},
-  {text:'How many fingers (incl. thumb) are on one hand?', a:'5'},
-  {text:'Half of twelve.', a:'6'},
-  {text:'The number of days in a week.', a:'7'},
-  {text:'The square root of eighty-one.', a:'9'},
-  {text:'The additive identity — the number that adds to nothing.', a:'0'},
-  {text:'The multiplicative identity — times it and nothing changes.', a:'1'},
-  {text:'Two squared.', a:'4'},
-  {text:'Binary 110 in decimal.', a:'6'},
-  {text:'Binary 101 in decimal.', a:'5'},
+  {text:'log base 2 of 4.', a:'2'},
+  {text:'The number of real solutions to x² = 9.', a:'2'},
+  // --- 3 ---
   {text:'The cube root of twenty-seven.', a:'3'},
-  {text:'The number of sides on an octagon.', a:'8'},
-  {text:'A perfect ten, minus one.', a:'9'},
-  {text:'Wheels on a tricycle.', a:'3'},
-  {text:'Hexadecimal F minus ten, in decimal.', a:'5'},
-  {text:'Thirteen minus twelve.', a:'1'},
+  {text:'The digit sum of the number 120.', a:'3'},
+  {text:'How many prime numbers are there below 6?', a:'3'},
+  {text:'3! divided by 2.', a:'3'},
+  // --- 4 ---
+  {text:'Two squared.', a:'4'},
+  {text:'The smallest composite number.', a:'4'},
+  {text:'The number of faces on a tetrahedron.', a:'4'},
   {text:'The number of bits in a nibble.', a:'4'},
+  // --- 5 ---
+  {text:'The number of Platonic solids.', a:'5'},
+  {text:'Binary 101 in decimal.', a:'5'},
+  {text:'The number of vowels in the English alphabet.', a:'5'},
+  {text:'The next number: 1, 1, 2, 3, __ (Fibonacci).', a:'5'},
+  // --- 6 ---
+  {text:'The smallest perfect number (its divisors add up to itself).', a:'6'},
+  {text:'The number of faces on a cube.', a:'6'},
+  {text:'Three factorial (3!).', a:'6'},
+  {text:'Half of twelve.', a:'6'},
+  // --- 7 ---
+  {text:'Two cubed, minus one.', a:'7'},
+  {text:'The number of colours in a rainbow (ROYGBIV).', a:'7'},
+  {text:'A prime number, and the count of days in a week.', a:'7'},
+  // --- 8 ---
+  {text:'Two cubed.', a:'8'},
+  {text:'How many bits are in a byte?', a:'8'},
+  {text:'The number of vertices (corners) on a cube.', a:'8'},
   {text:'How many legs does a spider have?', a:'8'},
-  {text:'A pair — this many in a duo.', a:'2'},
-  // fun / wordplay / logic
-  {text:'The digit that looks like a snowman.', a:'8'},
-  {text:'The loneliest number, according to the song.', a:'1'},
-  {text:'A cat is said to have this many lives.', a:'9'},
-  {text:'Count the vowels in the word "AEIOU".', a:'5'},
-  {text:'Letters in the word "CODE".', a:'4'},
-  {text:'Colours in a rainbow (ROYGBIV) minus one.', a:'6'},
-  {text:'Tentacles on an octopus.', a:'8'},
-  {text:'Wheels on a unicycle.', a:'1'},
-  {text:'Musicians in a quartet.', a:'4'},
-  {text:'Sides on a hexagon.', a:'6'},
-  {text:'Zeroes in the number one thousand.', a:'3'},
-  {text:'Points for a touchdown in American football.', a:'6'},
-  {text:'The highest single-digit number.', a:'9'},
-  {text:'Primary colours: red, blue and…?  (count them)', a:'3'},
-  {text:'Legs on a standard chair.', a:'4'},
-  {text:'Sides on a pentagon.', a:'5'},
-  {text:'A baker’s dozen minus a dozen.', a:'1'},
-  {text:'Letters in the word "GO".', a:'2'},
-  {text:'The number hidden here: "b7t" — read the middle character.', a:'7'},
-  {text:'ASCII space is 32; its two digits added together.', a:'5'},
-  {text:'The number of strikes to strike out in baseball.', a:'3'}
+  // --- 9 ---
+  {text:'The square root of eighty-one.', a:'9'},
+  {text:'Three squared.', a:'9'},
+  {text:'The number of innings in a standard baseball game.', a:'9'},
+  {text:'The largest number expressible with a single digit.', a:'9'}
 ];
 function hashStr(s){ let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return h; }
 // Deterministic per-team riddle assignment (shuffled differently for each team).
