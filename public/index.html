@@ -136,6 +136,15 @@
   .cbclue li{font-size:15px}
   .cbdig{font-family:ui-monospace,Consolas,monospace;font-size:22px;color:var(--accent);
     background:rgba(79,124,240,.12);border-radius:6px;padding:0 8px}
+  /* shared team vault */
+  .cbvault{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+  .cbslot{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:64px}
+  .cbslot .cbd{display:flex;align-items:center;justify-content:center;width:52px;height:60px;
+    font-size:28px;font-weight:900;font-family:ui-monospace,Consolas,monospace;
+    border:2px dashed var(--line);border-radius:12px;background:var(--panel2);color:var(--muted)}
+  .cbslot .cbn{font-size:11px;color:var(--muted);text-align:center;max-width:76px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cbslot.ok .cbd{border-style:solid;border-color:var(--green);background:rgba(30,184,102,.14);color:var(--green)}
+  .cbslot.bad .cbd{border-style:solid;border-color:var(--red);background:rgba(240,66,107,.12);color:var(--red)}
   /* Logo Guess (letter-tile) */
   .lgstage{background:#fff;border-radius:14px;padding:18px;min-height:200px;display:flex;
     flex-direction:column;align-items:center;justify-content:center;gap:14px;border:1px solid var(--line)}
@@ -299,7 +308,7 @@ const ROUNDS = [
     words:['LOOP','ARRAY','CLASS','DEBUG','CLOUD','SERVER','PYTHON','BROWSER','COMPILER','FUNCTION'] },
 
   { id:'r6', type:'codebreak', title:'Code Breakers', duration:360, max:100,
-    prompt:'Each teammate gets a RIDDLE that reveals one digit of your team code (code length = team size). Solve your riddle, share your digit in team chat, combine them in order, and anyone enters the full code to unlock. Fastest team scores highest!' },
+    prompt:'Your team shares one vault. Each teammate owns ONE digit: solve your own riddle and type your single digit — the vault unlocks when everyone’s digit is correct. Fastest team scores highest!' },
 
   { id:'r7', type:'relay', title:'Team Relay Quiz', duration:300, max:100,
     prompt:'15 rapid-fire questions across 3 categories! Each question is on screen for 20 seconds then auto-advances. Discuss in team chat and ANYONE locks the team’s answer — it counts for everyone.',
@@ -399,9 +408,9 @@ const GAME_HELP = {
       pts:'Correct answer scores up to 100 — the sooner you answer, the more you get.'},
   r5:{how:'Unscramble as many of the 10 tech terms as you can in 60 seconds. Type a word and hit ✓ (or Enter) to lock it in. Use ◀ Back / Next ▶ to move between words — jump around freely.',
       pts:'10 points per word you unscramble correctly (10 words = up to 100). Scores save automatically when time runs out.'},
-  r6:{how:'A TEAM game! Each teammate gets a riddle whose answer is one digit of the team code (code length = number of members). Solve your riddle, share your digit in chat, and anyone enters the combined code to unlock.',
-      ex:'3-person team → Ana (#1) solves "sides of a triangle" = 3, Ben (#2) solves "half of twelve" = 6, Cara (#3) solves "days in a week" = 7 → combine in order = code 367.',
-      pts:'Unlocking earns 60 points, PLUS a time bonus of up to 40 more the faster you crack it (max 100). Unlock early to beat rival teams!'},
+  r6:{how:'A TEAM game! Your team shares one vault with one digit slot per member. You get YOUR OWN riddle — solve it, type your single digit, and hit "Lock in". Your slot turns green if correct (red to retry). The vault unlocks automatically once every teammate’s digit is right. Watch the vault fill live and help each other in chat!',
+      ex:'3-person team → Ana solves "sides of a triangle" = 3, Ben solves "half of twelve" = 6, Cara solves "days in a week" = 7. Each types just their own digit; when all three are green the vault (367) unlocks.',
+      pts:'Full unlock = 60 points + a time bonus up to 40 (max 100) — faster is better. Partial credit if you don’t finish: points for each correct digit.'},
   r7:{how:'A TEAM game! Everyone sees the same question at the same time. Each question lasts 20 seconds then auto-advances. Talk it over in team chat, then anyone taps the team’s answer — it locks (green if right, red if wrong) for everyone.',
       ex:'15 questions across 💻 Developer, 🌍 General Knowledge and 🧠 IQ/Logic. Answer within 20 seconds — if no one answers in time, it moves on and that question scores 0.',
       pts:'Points for every question your team answers correctly (all 15 correct = 100). One shared team score.'},
@@ -541,7 +550,9 @@ function teamRoundScore(t,r){
     return Math.min(round.max||100, Math.round(n/(round.target||10)*(round.max||100)));
   }
   if(round && round.type==='codebreak'){
-    const cb=STORE['cb:'+r+':'+t.id]; return (cb&&cb.solved)?cb.score:0;
+    const cb=STORE['cb:'+r+':'+t.id]; if(cb&&cb.solved) return cb.score;   // full unlock + time bonus
+    const {N}=cbAssign(round,t);                                            // else partial credit
+    return N?Math.round(cbCorrectCount(t,r)/N*60):0;
   }
   if(round && round.type==='relay'){
     const qs=round.questions||[]; let correct=0;
@@ -1147,10 +1158,11 @@ function refreshBrainstorm(){
 // 6) Code Breakers — code length = team size; each member solves a RIDDLE for
 // their digit; each team gets a different shuffled assignment.
 const RIDDLES=[
+  // each riddle resolves to a single digit 0–9
   {text:'The only even prime number.', a:'2'},
   {text:'How many bits are in a byte?', a:'8'},
   {text:'The number of sides on a triangle.', a:'3'},
-  {text:'How many fingers are on one hand?', a:'5'},
+  {text:'How many fingers (incl. thumb) are on one hand?', a:'5'},
   {text:'Half of twelve.', a:'6'},
   {text:'The number of days in a week.', a:'7'},
   {text:'The square root of eighty-one.', a:'9'},
@@ -1163,11 +1175,32 @@ const RIDDLES=[
   {text:'The number of sides on an octagon.', a:'8'},
   {text:'A perfect ten, minus one.', a:'9'},
   {text:'Wheels on a tricycle.', a:'3'},
-  {text:'Hexadecimal F, minus ten (in decimal).', a:'5'},
+  {text:'Hexadecimal F minus ten, in decimal.', a:'5'},
   {text:'Thirteen minus twelve.', a:'1'},
   {text:'The number of bits in a nibble.', a:'4'},
   {text:'How many legs does a spider have?', a:'8'},
   {text:'A pair — this many in a duo.', a:'2'},
+  // fun / wordplay / logic
+  {text:'The digit that looks like a snowman.', a:'8'},
+  {text:'The loneliest number, according to the song.', a:'1'},
+  {text:'A cat is said to have this many lives.', a:'9'},
+  {text:'Count the vowels in the word "AEIOU".', a:'5'},
+  {text:'Letters in the word "CODE".', a:'4'},
+  {text:'Colours in a rainbow (ROYGBIV) minus one.', a:'6'},
+  {text:'Tentacles on an octopus.', a:'8'},
+  {text:'Wheels on a unicycle.', a:'1'},
+  {text:'Musicians in a quartet.', a:'4'},
+  {text:'Sides on a hexagon.', a:'6'},
+  {text:'Zeroes in the number one thousand.', a:'3'},
+  {text:'Points for a touchdown in American football.', a:'6'},
+  {text:'The highest single-digit number.', a:'9'},
+  {text:'Primary colours: red, blue and…?  (count them)', a:'3'},
+  {text:'Legs on a standard chair.', a:'4'},
+  {text:'Sides on a pentagon.', a:'5'},
+  {text:'A baker’s dozen minus a dozen.', a:'1'},
+  {text:'Letters in the word "GO".', a:'2'},
+  {text:'The number hidden here: "b7t" — read the middle character.', a:'7'},
+  {text:'ASCII space is 32; its two digits added together.', a:'5'},
   {text:'The number of strikes to strike out in baseball.', a:'3'}
 ];
 function hashStr(s){ let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return h; }
@@ -1180,49 +1213,80 @@ function cbAssign(round,t){
   const chosen=[]; for(let i=0;i<N;i++) chosen.push(RIDDLES[idx[i%idx.length]]);
   return {members, chosen, code:chosen.map(r=>r.a).join(''), N};
 }
+// How many teammates have entered their CORRECT digit for this round.
+function cbCorrectCount(t,r){ const {members}=cbAssign(ROUNDS[r],t);
+  return members.reduce((n,m)=>{ const d=STORE['cb:'+r+':'+t.id+':'+m.pid]; return n+((d&&d.correct)?1:0); },0); }
+
 function gameCodebreak(box,round){
   const t=teamOf(MY.pid);
   activeGame.submitted=true; activeGame.finalize=()=>({});   // team-scored, custom submit
   if(!t){ box.innerHTML='<p class="muted">Waiting to be put on a team…</p>'; return; }
-  const {members,chosen,code,N}=cbAssign(round,t);
+  const {members,chosen,N}=cbAssign(round,t);
   const myIndex=members.findIndex(m=>m.pid===MY.pid);
   const myRiddle=myIndex>=0?chosen[myIndex]:null;
   box.innerHTML=`
+    <p class="muted" style="font-size:13px;margin:0 0 10px">
+      🔐 Your team shares one <b>${N}-digit vault</b>. Each teammate owns <b>one digit</b>.
+      Solve <b>your</b> riddle, type your single digit below — the vault unlocks when
+      <b>everyone's</b> digit is correct. Stuck? Ask in team chat! 💬</p>
     <div class="cbclue">
-      <div class="hlbl">🧩 You are digit #${myIndex+1} of ${N} — solve your riddle</div>
-      <div style="font-size:16px;margin-top:8px">${myRiddle?esc(myRiddle.text):'Help your team coordinate in chat!'}</div>
-      <div class="muted" style="font-size:12px;margin-top:6px">Work out your digit (0–9) and tell your team: “digit #${myIndex+1} = ?”</div>
+      <div class="hlbl">🧩 Your riddle — you are digit #${myIndex+1}</div>
+      <div style="font-size:17px;margin-top:8px">${myRiddle?esc(myRiddle.text):'Help your team in chat!'}</div>
     </div>
-    <p class="muted" style="font-size:12px;margin-top:10px">Combine everyone's digits in order, then anyone enters the ${N}-digit code:</p>
-    <div class="row" style="gap:6px">
-      <input id="cbin" inputmode="numeric" maxlength="${N}" placeholder="${'•'.repeat(N)}"
-        style="flex:1;letter-spacing:8px;font-size:22px;text-align:center"/>
-      <button id="cbtry" class="ok">🔓 Unlock</button></div>
+    <div class="row" style="gap:8px;margin-top:12px;align-items:center">
+      <span class="muted" style="font-size:13px">Your digit:</span>
+      <input id="cbmy" inputmode="numeric" maxlength="1" placeholder="?"
+        style="width:64px;letter-spacing:2px;font-size:26px;text-align:center"/>
+      <button id="cbset" class="ok">Lock in ✓</button>
+      <span id="cbmymsg" class="muted" style="font-size:13px"></span></div>
+    <div class="hlbl" style="margin-top:16px">🔓 Team vault</div>
+    <div id="cbvault" class="cbvault"></div>
     <div id="cbstatus" style="margin-top:10px"></div>`;
-  const inp=$('#cbin',box), st=$('#cbstatus',box);
-  async function tryCode(){
-    const cur=STORE['cb:'+G.roundIndex+':'+t.id]; if(cur&&cur.solved) return;
+  const inp=$('#cbmy',box), msg=$('#cbmymsg',box);
+  // pre-fill my previous entry if I re-open
+  const mine=STORE['cb:'+G.roundIndex+':'+t.id+':'+MY.pid]; if(mine) inp.value=mine.digit;
+  async function lockIn(){
+    if(STORE['cb:'+G.roundIndex+':'+t.id]) return;         // already unlocked
     const v=inp.value.trim();
-    if(v.length!==code.length){ st.innerHTML=`<span class="muted">Enter all ${code.length} digits.</span>`; return; }
-    if(v===code){ const frac=round.duration?remaining()/round.duration:0;
-      const score=Math.min(round.max||100, 60+Math.round(40*clamp(frac,0,1)));
-      await apiSet('cb:'+G.roundIndex+':'+t.id,{solved:true, code:v, by:MY.name, score, ts:serverNow()});
-      sndAward(); confetti(90); poll();
-    } else { st.innerHTML=`<span style="color:var(--red)">❌ ${esc(v)} isn't right — keep combining clues!</span>`; sndBad(); }
+    if(!/^[0-9]$/.test(v)){ msg.innerHTML='<span style="color:var(--red)">Enter one digit 0–9.</span>'; return; }
+    const correct=(v===myRiddle.a);
+    await apiSet('cb:'+G.roundIndex+':'+t.id+':'+MY.pid,{digit:v, correct, name:MY.name, idx:myIndex, ts:serverNow()});
+    if(correct){ msg.innerHTML='<span style="color:var(--green)">✓ correct — your slot is locked!</span>'; sndGood(); }
+    else { msg.innerHTML='<span style="color:var(--red)">❌ not right — re-read your riddle and try again.</span>'; sndBad(); }
+    poll();
   }
-  $('#cbtry',box).onclick=tryCode;
-  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();tryCode();}});
+  $('#cbset',box).onclick=lockIn;
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();lockIn();}});
   refreshCodebreak();
 }
-function refreshCodebreak(){
-  const st=document.getElementById('cbstatus'); if(!st) return;
+async function refreshCodebreak(){
   const t=teamOf(MY.pid); if(!t) return;
-  const cb=STORE['cb:'+G.roundIndex+':'+t.id];
-  if(cb&&cb.solved){
-    st.innerHTML=`<span class="pill live">🔓 UNLOCKED by ${esc(cb.by)} — +${cb.score} pts!</span>`;
-    const inp=document.getElementById('cbin'), btn=document.getElementById('cbtry');
-    if(inp){ inp.disabled=true; inp.value=cb.code; } if(btn) btn.disabled=true;
+  const r=G.roundIndex, round=ROUNDS[r];
+  const {members,chosen,code,N}=cbAssign(round,t);
+  const solved=STORE['cb:'+r+':'+t.id];
+  // Draw the shared vault: one slot per teammate, live for everyone.
+  const vault=document.getElementById('cbvault');
+  if(vault){ vault.innerHTML=members.map((m,i)=>{
+      const d=STORE['cb:'+r+':'+t.id+':'+m.pid];
+      const cls=solved?'ok':(d?(d.correct?'ok':'bad'):'');
+      const face=solved?esc(chosen[i].a):(d?(d.correct?esc(d.digit):'✗'):'?');
+      const you=m.pid===MY.pid?' (you)':'';
+      return `<div class="cbslot ${cls}"><span class="cbd">${face}</span>
+        <span class="cbn">#${i+1} ${esc(m.name)}${you}</span></div>`; }).join(''); }
+  // Auto-unlock the moment every digit is correct (any client may write it).
+  const nCorrect=cbCorrectCount(t,r);
+  if(!solved && nCorrect===N && N>0){
+    const frac=round.duration?remaining()/round.duration:0;
+    const score=Math.min(round.max||100, 60+Math.round(40*clamp(frac,0,1)));
+    await apiSet('cb:'+r+':'+t.id,{solved:true, code, score, ts:serverNow()});
+    sndAward(); confetti(90); poll(); return;
   }
+  const st=document.getElementById('cbstatus');
+  if(st){ st.innerHTML = solved
+    ? `<span class="pill live">🔓 VAULT UNLOCKED — +${solved.score} pts!</span>`
+    : `<span class="muted">${nCorrect} of ${N} digits locked in…</span>`; }
+  if(solved){ const inp=document.getElementById('cbmy'), btn=document.getElementById('cbset');
+    if(inp) inp.disabled=true; if(btn) btn.disabled=true; }
 }
 // 7) Team Relay Quiz — questions auto-advance every RELAY_PER seconds, in sync
 // for the whole team (driven by the shared start time). Anyone answers the
@@ -1651,10 +1715,13 @@ function buildTeamReveal(round){
     correctHTML=t?`Your team found <b>${n}</b> correct ${esc(round.category.toLowerCase())}.`:'Team game.'; }
   else if(round.type==='codebreak'){
     if(t){ const a=cbAssign(round,t); const cb=STORE['cb:'+G.roundIndex+':'+t.id];
-      correctHTML=`Your code was <b class="cbdig">${esc(a.code)}</b>. `+
-        (cb&&cb.solved?`Unlocked! 🔓 (+${cb.score})`:'Not cracked in time.')+
+      const nOk=cbCorrectCount(t,G.roundIndex);
+      correctHTML=`The vault code was <b class="cbdig">${esc(a.code)}</b>. `+
+        (cb&&cb.solved?`Unlocked! 🔓 (+${cb.score})`:`Cracked <b>${nOk}/${a.N}</b> digits.`)+
         `<div class="muted" style="margin-top:8px;font-size:12px;line-height:1.6">`+
-        a.chosen.map((r,i)=>`#${i+1}: ${esc(r.text)} = <b>${r.a}</b>`).join('<br>')+`</div>`;
+        a.chosen.map((r,i)=>{ const d=STORE['cb:'+G.roundIndex+':'+t.id+':'+a.members[i].pid];
+          const ok=d&&d.correct; return `${ok?'✓':'✗'} #${i+1} ${esc(a.members[i].name)}: ${esc(r.text)} = <b>${r.a}</b>`;
+        }).join('<br>')+`</div>`;
     } else correctHTML='Team game.'; }
   else if(round.type==='relay'){ const qs=round.questions||[]; let correct=0;
     const rows=qs.map((q,i)=>{ const a=t?STORE['rq:'+G.roundIndex+':'+t.id+':'+i]:null;
