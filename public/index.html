@@ -617,6 +617,25 @@ function leaderboardHTML(highlightId){
 // ============================================================================
 //  ROUTER / LANDING
 // ============================================================================
+// A player clicking "Leave" should actually disappear from everyone's lobby —
+// remove their player record from the store, then return to the landing page.
+async function leaveAsPlayer(){
+  clearInterval(pollTimer); lastKey='';
+  const pid=MY&&MY.pid;
+  if(pid){ try{ await apiDel('player:'+pid); }catch(e){} }
+  routeLanding();
+}
+// Best-effort removal when a player CLOSES the tab from the lobby (not mid-game:
+// a backgrounded/closed tab during play may return, and reconcile handles those).
+function removeMeBeacon(){
+  if(!MY||!MY.pid) return;
+  try{ fetch('/api/storage/'+encodeURIComponent('player:'+MY.pid),{method:'DELETE',keepalive:true}); }catch(e){}
+}
+window.addEventListener('pagehide',(e)=>{
+  if(e.persisted) return;                                   // page may be restored from bfcache
+  if(ROLE==='player' && MY && G && (G.stage||'lobby')!=='game') removeMeBeacon();
+});
+
 function routeLanding(){
   ROLE=null;
   localStorage.removeItem('dra_role');   // explicit exit ends the resumable session
@@ -815,7 +834,7 @@ function buildPlayerLobby(){
       </div>
       <div class="people" id="people"></div>
     </div>`;
-  $('#leave').onclick=()=>{clearInterval(pollTimer);lastKey='';routeLanding();};
+  $('#leave').onclick=leaveAsPlayer;
 }
 function refreshLobbyPlayer(){
   const ppl=allPlayers(); const g=$('#people'); const c=$('#cntbig');
@@ -860,7 +879,7 @@ function buildPlayerGame(){
             <button id="chatsend">Send</button></div></div>`:''}
       </div>
     </div>`;
-  $('#leave').onclick=()=>{clearInterval(pollTimer);lastKey='';routeLanding();};
+  $('#leave').onclick=leaveAsPlayer;
 
   if(t){
     const send=async()=>{ const inp=$('#chatin'); const v=inp.value; if(!v.trim()) return;
