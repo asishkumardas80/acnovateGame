@@ -724,7 +724,10 @@ function routeHostGate(){
 let pollTimer=null, storeVersion=-1;
 async function poll(){
   try{
-    const r = await fetch('/api/all?v='+storeVersion);
+    // Players include their pid so the server knows they're still connected
+    // (presence). A player who stops polling is auto-removed from the lobby.
+    const pidq = (ROLE==='player' && MY && MY.pid) ? ('&pid='+encodeURIComponent(MY.pid)) : '';
+    const r = await fetch('/api/all?v='+storeVersion+pidq);
     if(r.status===304) return;                 // store unchanged since last poll — cheap
     storeVersion = Number(r.headers.get('X-Store-Version')||'0');
     STORE = await r.json();

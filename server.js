@@ -42,6 +42,33 @@ function requireHost(req, res) {
   return false;
 }
 
+// ---- Presence: auto-remove players who disappear -----------------------------
+// Every player's poll (~every 2s) carries ?pid=, so the server knows who is
+// still connected — independent of any browser "leave" event. A player who
+// stops polling (closed tab, crash, dead battery) is pruned from the lobby, so
+// they never linger as a "ghost" in everyone else's lobby. Never prunes during
+// an active game (a slept/backgrounded phone must keep its team slot).
+const lastSeen = {};                 // pid -> last time we heard from them (ms)
+const bootTime = Date.now();
+const STALE_MS = 40000;              // gone if not seen for 40s
+const BOOT_GRACE_MS = 60000;         // grace for persisted players to reconnect after a restart
+function pruneStalePlayers() {
+  const g = store.game || {};
+  if ((g.stage || 'lobby') === 'game') return;   // never prune mid-game
+  const now = Date.now();
+  let removed = 0;
+  for (const key of Object.keys(store)) {
+    if (!key.startsWith('player:')) continue;
+    const pid = key.slice(7);
+    const seen = lastSeen[pid];
+    const gone = seen ? (now - seen > STALE_MS)          // polled, then went silent
+                      : (now - bootTime > BOOT_GRACE_MS); // never polled since boot (e.g. an old persisted ghost)
+    if (gone) { delete store[key]; delete lastSeen[pid]; removed++; }
+  }
+  if (removed) bump();
+}
+setInterval(pruneStalePlayers, 15000);
+
 // Where host-uploaded images (e.g. Logo Guess logos) are stored. Served
 // statically from /uploads because it lives under public/.
 try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch (e) {}
@@ -137,6 +164,8 @@ app.get('/api/time', (req, res) => {
 // Return the entire store in one shot. The host uses this to read every
 // team's submission/score at once; teams use it to render the leaderboard.
 app.get('/api/all', (req, res) => {
+  // Presence: note that this player is still here (works even when we 304 below).
+  if (req.query.pid) lastSeen[String(req.query.pid)] = Date.now();
   // Cheap polling: if the client already has the current version, send 304.
   if (req.query.v !== undefined && Number(req.query.v) === version) return res.status(304).end();
   res.setHeader('X-Store-Version', String(version));
