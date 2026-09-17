@@ -172,6 +172,9 @@ app.get('/api/storage/:key', (req, res) => {
 // Host-only keys (game/teams/tscore:/config:) require a valid host token.
 app.post('/api/storage/:key', (req, res) => {
   const key = req.params.key;
+  // Players are managed only over WebSocket (presence). Ignore HTTP writes to
+  // player:* so an old polling tab can't re-create a ghost.
+  if (key.startsWith('player:')) return res.status(409).json({ error: 'players are managed over WebSocket' });
   if (isHostKey(key) && !requireHost(req, res)) return;
   const body = req.body || {};
   store[key] = ('value' in body) ? body.value : body;
@@ -293,3 +296,25 @@ setInterval(() => {
     ws.isAlive = false; try { ws.ping(); } catch (e) {}
   });
 }, 30000);
+
+// Safety net: a WebSocket connection is the ONLY way to be a player. Any player
+// record with no live socket is a ghost (a leftover, or an old polling tab that
+// wrote over HTTP) and is removed — a short grace in the lobby (so a reconnecting
+// socket isn't caught mid-handshake), a longer one mid-game (for slept phones).
+const missingSince = {};
+setInterval(() => {
+  const live = new Set();
+  wss.clients.forEach((ws) => { if (ws._pid && ws.readyState === 1) live.add(ws._pid); });
+  const inGame = ((store.game || {}).stage || 'lobby') === 'game';
+  const grace = inGame ? MID_GAME_GRACE_MS : 8000;
+  const now = Date.now();
+  let removed = 0;
+  for (const key of Object.keys(store)) {
+    if (!key.startsWith('player:')) continue;
+    const pid = key.slice(7);
+    if (live.has(pid)) { delete missingSince[pid]; continue; }
+    if (!missingSince[pid]) missingSince[pid] = now;
+    if (now - missingSince[pid] > grace) { delete store[key]; delete missingSince[pid]; removed++; }
+  }
+  if (removed) bump();
+}, 5000);
