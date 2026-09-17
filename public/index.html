@@ -440,14 +440,15 @@ const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
 const uid = ()=> (crypto.randomUUID?crypto.randomUUID():'p'+Date.now()+Math.random().toString(36).slice(2));
 
 // Host session token (issued by the server after the passcode is verified).
-// Sent on host-only actions; players simply don't have one.
 function htoken(){ return localStorage.getItem('dra_htoken')||''; }
 function hHeaders(extra){ return Object.assign({'X-Host-Token':htoken()}, extra||{}); }
-async function apiGetAll(){ const r=await fetch('/api/all'); return r.json(); }
-async function apiSet(key,value){ return fetch('/api/storage/'+encodeURIComponent(key),
-  {method:'POST',headers:hHeaders({'Content-Type':'application/json'}),body:JSON.stringify({value})}); }
-async function apiDel(key){ return fetch('/api/storage/'+encodeURIComponent(key),{method:'DELETE',headers:hHeaders()}); }
-async function apiReset(){ return fetch('/api/reset',{method:'POST',headers:hHeaders()}); }
+// State changes flow over a live WebSocket (see connectWS). apiSet/apiDel/etc.
+// just send a message; the server applies it and pushes the new store to
+// everyone, so there is no polling and presence is exact.
+function apiSet(key,value){ wsSend({t:'set',key,value}); return Promise.resolve(); }
+function apiDel(key){ wsSend({t:'del',key}); return Promise.resolve(); }
+function apiReset(){ wsSend({t:'reset'}); return Promise.resolve(); }
+// Image upload still uses HTTP (binary payload), gated by the host token.
 async function apiUpload(filename,dataUrl){ const r=await fetch('/api/upload',
   {method:'POST',headers:hHeaders({'Content-Type':'application/json'}),body:JSON.stringify({filename,dataUrl})});
   return r.json(); }
@@ -520,17 +521,10 @@ let G = null;                                 // current game state
 let lastKey = '';                             // stage:phase:roundIndex -> rebuild
 let activeGame = null;
 let celebrated = 0;                           // my team's total, for celebration
-// Anti-flicker: only switch the shown stage (lobby <-> game) after a change has
-// held for 2 consecutive polls, so a stray/oscillating poll (server restart,
-// deploy overlap, out-of-order response) can't flap the screen. Local actions
-// (Start / Reset / Back to Lobby) set _committedStage directly for instant feel.
-let _committedStage = null, _stageCandidate = null, _stageStreak = 0;
-function stableStage(raw){
-  if(raw===_committedStage){ _stageCandidate=null; _stageStreak=0; return _committedStage; }
-  if(raw===_stageCandidate) _stageStreak++; else { _stageCandidate=raw; _stageStreak=1; }
-  if(_committedStage===null || _stageStreak>=2){ _committedStage=raw; _stageCandidate=null; _stageStreak=0; }
-  return _committedStage;
-}
+// With the WebSocket transport the server pushes exact, ordered state, so there
+// is nothing to debounce — the old anti-flicker guard is a passthrough now.
+let _committedStage = null;
+function stableStage(raw){ _committedStage=raw; return raw; }
 
 function defaultGame(){ return {stage:'lobby', roundIndex:0, phase:'lobby', tStart:0, duration:0}; }
 
@@ -629,10 +623,10 @@ function leaderboardHTML(highlightId){
 // ============================================================================
 // A player clicking "Leave" should actually disappear from everyone's lobby —
 // remove their player record from the store, then return to the landing page.
-async function leaveAsPlayer(){
-  clearInterval(pollTimer); lastKey='';
-  const pid=MY&&MY.pid;
-  if(pid){ try{ await apiDel('player:'+pid); }catch(e){} }
+function leaveAsPlayer(){
+  wsSend({t:'leave'});          // tell the server to remove us now
+  disconnectWS(); lastKey='';
+  localStorage.removeItem('dra_joined');
   routeLanding();
 }
 // Best-effort removal when a player CLOSES the tab from the lobby (not mid-game:
@@ -730,25 +724,53 @@ function routeHostGate(){
 }
 
 // ============================================================================
-//  POLLING
+//  REAL-TIME CONNECTION (WebSocket)
 // ============================================================================
-let pollTimer=null, storeVersion=-1;
-async function poll(){
-  try{
-    // Players include their pid so the server knows they're still connected
-    // (presence). A player who stops polling is auto-removed from the lobby.
-    const pidq = (ROLE==='player' && MY && MY.pid) ? ('&pid='+encodeURIComponent(MY.pid)) : '';
-    const r = await fetch('/api/all?v='+storeVersion+pidq);
-    if(r.status===304) return;                 // store unchanged since last poll — cheap
-    storeVersion = Number(r.headers.get('X-Store-Version')||'0');
-    STORE = await r.json();
-    G = STORE.game || defaultGame();
-    if(!(G.roundIndex>=0 && G.roundIndex<ROUNDS.length)) G.roundIndex=0;  // guard stale/out-of-range
-    if(ROLE==='player') renderPlayer();
-    else if(ROLE==='host') renderHost();
-  }catch(e){}
+// One live socket per client. The server pushes the whole store on every change,
+// so the UI is always in sync, and it knows exactly who is connected — closing a
+// tab drops the socket and the player is removed at once (no polling, no ghosts).
+let ws=null, wsOutbox=[], wsRetry=0, wsClosedByUs=false;
+function wsUrl(){ return (location.protocol==='https:'?'wss://':'ws://')+location.host; }
+function wsSend(msg){
+  const s=JSON.stringify(msg);
+  if(ws && ws.readyState===1) ws.send(s); else wsOutbox.push(s);   // queue until open
 }
-function startPolling(ms){ clearInterval(pollTimer); storeVersion=-1; poll(); pollTimer=setInterval(poll,ms); }
+function wsHello(){
+  if(ROLE==='host') wsSend({t:'hello',role:'host',token:htoken()});
+  else if(ROLE==='player' && MY && MY.pid) wsSend({t:'hello',role:'player',pid:MY.pid,me:MY});
+}
+function applyStore(newStore){
+  STORE = newStore||{};
+  G = STORE.game || defaultGame();
+  if(!(G.roundIndex>=0 && G.roundIndex<ROUNDS.length)) G.roundIndex=0;
+  if(ROLE==='player') renderPlayer();
+  else if(ROLE==='host') renderHost();
+}
+function connectWS(){
+  wsClosedByUs=false;
+  try{ ws = new WebSocket(wsUrl()); }catch(e){ setTimeout(connectWS,1000); return; }
+  ws.onopen = ()=>{ wsRetry=0; wsHello(); const q=wsOutbox; wsOutbox=[]; q.forEach(s=>{ try{ws.send(s);}catch(e){} }); };
+  ws.onmessage = (ev)=>{
+    let m; try{ m=JSON.parse(ev.data); }catch(e){ return; }
+    if(m.t==='store'){ applyStore(m.store); }
+    else if(m.t==='kicked'){                 // host reset the event -> back to landing
+      wsClosedByUs=true; try{ws.close();}catch(e){}
+      localStorage.removeItem('dra_me'); localStorage.removeItem('dra_joined'); MY=null;
+      routeLanding();
+    }
+    else if(m.t==='denied' && m.reason==='auth'){ // host token no longer valid
+      localStorage.removeItem('dra_htoken'); localStorage.removeItem('dra_role');
+      wsClosedByUs=true; try{ws.close();}catch(e){} routeHostGate();
+    }
+  };
+  ws.onclose = ()=>{ if(wsClosedByUs) return; wsRetry=Math.min(wsRetry+1,6);
+    setTimeout(connectWS, 400*wsRetry); };   // auto-reconnect with backoff
+  ws.onerror = ()=>{ try{ws.close();}catch(e){} };
+}
+function disconnectWS(){ wsClosedByUs=true; if(ws){ try{ws.close();}catch(e){} } ws=null; }
+// Back-compat shims for the old polling API used across the app.
+function poll(){ if(!ws || ws.readyState>1) connectWS(); }
+function startPolling(){ disconnectWS(); connectWS(); }
 
 // ---- Timer -----------------------------------------------------------------
 function remaining(){
@@ -778,14 +800,14 @@ setInterval(()=>{
 // ============================================================================
 //  PLAYER VIEW
 // ============================================================================
-function startPlayer(){ ROLE='player'; localStorage.setItem('dra_role','player'); lastKey=''; _committedStage=null; _stageCandidate=null; _stageStreak=0; celebrated=myTeamTotal(); startPolling(2000); }
+function startPlayer(){ ROLE='player'; localStorage.setItem('dra_role','player'); lastKey=''; _committedStage=null; celebrated=myTeamTotal(); startPolling(); }
 
 function renderPlayer(){
   // If the host wiped everything (Reset) AFTER we joined, bounce to the landing
   // page instead of silently re-registering as a ghost.
   const joined=Number(localStorage.getItem('dra_joined')||'0');
   if(G && G.resetAt && joined && G.resetAt>joined){
-    clearInterval(pollTimer); lastKey='';
+    disconnectWS(); lastKey='';
     localStorage.removeItem('dra_me'); localStorage.removeItem('dra_joined');
     MY=null; routeLanding(); return;
   }
@@ -1823,7 +1845,7 @@ function buildTeamReveal(round){
 // ============================================================================
 //  HOST VIEW
 // ============================================================================
-function startHost(){ ROLE='host'; localStorage.setItem('dra_role','host'); lastKey=''; _committedStage=null; _stageCandidate=null; _stageStreak=0; startPolling(2000); }
+function startHost(){ ROLE='host'; localStorage.setItem('dra_role','host'); lastKey=''; _committedStage=null; startPolling(); }
 
 function renderHost(){
   const stage=stableStage(G.stage||'lobby');
@@ -1868,7 +1890,7 @@ function buildHostLobby(){
       <p class="muted" style="font-size:12px;margin-top:6px" id="tnote">With <b>${teamTarget}</b> per team, <b id="tcalc">0</b> players ≈ <b id="tteams">0</b> teams. Random & balanced; players see their team only when the game starts.</p>
     </div>
     <div id="teampreview"></div>`;
-  $('#leave').onclick=()=>{clearInterval(pollTimer);lastKey='';routeLanding();};
+  $('#leave').onclick=()=>{disconnectWS();lastKey='';routeLanding();};
   $('#build').onclick=buildTeams;
   const ts=$('#tsize'); if(ts) ts.onchange=()=>{ teamTarget=Number(ts.value); localStorage.setItem('dra_tsize',teamTarget); refreshHostLobby(); };
   const st=$('#start'); if(st) st.onclick=startGame;
@@ -1934,12 +1956,7 @@ async function backToLobby(){
 
 // Clear every score/submission. Uses the fast server endpoint, and falls back to
 // per-key deletes if the server hasn't been relaunched with that endpoint yet.
-async function clearScores(){
-  try{ const r=await fetch('/api/clearScores',{method:'POST',headers:hHeaders()}); if(r.ok) return; }catch(e){}
-  const keys=Object.keys(STORE).filter(k=>
-    k.startsWith('pscore:')||k.startsWith('panswer:')||k.startsWith('tscore:'));
-  await Promise.all(keys.map(k=>apiDel(k)));
-}
+function clearScores(){ wsSend({t:'clearScores'}); return Promise.resolve(); }
 // Restart just the CURRENT round: clear this round's scores/submissions and put
 // it back to the ready state so the host can start it again.
 async function restartRound(){
@@ -2016,7 +2033,7 @@ function buildHostGameShell(){
       <div class="card"><h3>Live — Round ${G.roundIndex+1}: ${esc(round.title)}</h3><div id="teamlist"></div></div>
       <div class="card"><h3>🏆 Leaderboard</h3><div id="hlb"></div></div>
     </div>`;
-  $('#leave').onclick=()=>{clearInterval(pollTimer);lastKey='';routeLanding();};
+  $('#leave').onclick=()=>{disconnectWS();lastKey='';routeLanding();};
   $('#prev').onclick=()=>jumpRound(G.roundIndex-1);
   $('#next').onclick=()=>jumpRound(G.roundIndex+1);
   const s=$('#start'); if(s) s.onclick=startRound;
@@ -2126,14 +2143,9 @@ document.addEventListener('keydown', e=>{
   // Resume the session on refresh instead of dumping the user back to the landing page.
   const role=localStorage.getItem('dra_role');
   if(role==='player' && MY && MY.pid) startPlayer();
-  else if(role==='host'){
-    // Re-verify the host token (it resets if the server restarted); if it's no
-    // longer valid, ask for the passcode again instead of a broken host screen.
-    let ok=false;
-    try{ const r=await fetch('/api/host-check',{headers:hHeaders()}); ok=(await r.json()).ok; }catch(e){}
-    if(ok) startHost();
-    else { localStorage.removeItem('dra_htoken'); localStorage.removeItem('dra_role'); routeHostGate(); }
-  }
+  // Host: connect and identify over WS. If the token is stale (server restarted),
+  // the server replies 'denied' and we drop to the passcode gate automatically.
+  else if(role==='host') startHost();
   else routeLanding();
 })();
 </script>

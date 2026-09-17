@@ -6,6 +6,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { WebSocketServer } = require('ws');
 let compression = null; try { compression = require('compression'); } catch (e) {}
 
 const app = express();
@@ -42,35 +43,13 @@ function requireHost(req, res) {
   return false;
 }
 
-// ---- Presence: auto-remove players who disappear -----------------------------
-// Every player's poll (~every 2s) carries ?pid=, so the server knows who is
-// still connected — independent of any browser "leave" event. A player who
-// stops polling (closed tab, crash, dead battery) is pruned from the lobby, so
-// they never linger as a "ghost" in everyone else's lobby. Never prunes during
-// an active game (a slept/backgrounded phone must keep its team slot).
-const lastSeen = {};                 // pid -> last time we heard from them (ms)
-const bootTime = Date.now();
-const STALE_MS = 40000;              // in the lobby: gone if not seen for 40s
-const GAME_STALE_MS = 120000;        // mid-game: a longer window so a briefly-slept active player keeps their slot
-const BOOT_GRACE_MS = 60000;         // grace for persisted players to reconnect after a restart
-function pruneStalePlayers() {
-  const now = Date.now();
-  const inGame = ((store.game || {}).stage || 'lobby') === 'game';
-  const staleMs = inGame ? GAME_STALE_MS : STALE_MS;
-  let removed = 0;
-  for (const key of Object.keys(store)) {
-    if (!key.startsWith('player:')) continue;
-    const pid = key.slice(7);
-    const seen = lastSeen[pid];
-    // Gone if they polled then went silent past the window, OR never polled at
-    // all since boot (an old persisted ghost from a previous session).
-    const gone = seen ? (now - seen > staleMs)
-                      : (now - bootTime > BOOT_GRACE_MS);
-    if (gone) { delete store[key]; delete lastSeen[pid]; removed++; }
-  }
-  if (removed) bump();
-}
-setInterval(pruneStalePlayers, 15000);
+// ---- Presence via WebSockets -------------------------------------------------
+// Each player holds a live WebSocket. Presence is EXACT: when their tab closes,
+// crashes, or the network drops, the socket closes and the server removes them
+// immediately (in the lobby) — no polling, no timers, no ghosts. The WS setup
+// lives at the bottom of this file (after the HTTP server is created).
+const MID_GAME_GRACE_MS = 45000;     // mid-game: keep a slot this long for reconnects
+const serverDefaultGame = () => ({ stage: 'lobby', roundIndex: 0, phase: 'lobby', tStart: 0, duration: 0 });
 
 // Where host-uploaded images (e.g. Logo Guess logos) are stored. Served
 // statically from /uploads because it lives under public/.
@@ -87,11 +66,21 @@ try {
 } catch (e) {
   store = {};
 }
+// On boot, drop any persisted player records — their sockets died when the old
+// process stopped, so they are ghosts. Real players reconnect over WS and
+// re-register themselves. This guarantees a clean slate after every restart.
+for (const k of Object.keys(store)) { if (k.startsWith('player:')) delete store[k]; }
 
-// Store version — bumped on every change so clients can poll cheaply: an
-// unchanged store returns 304 (tiny) instead of the whole payload.
+// Store version (kept for the legacy HTTP /api/all poller). Every change bumps
+// it, persists to disk, and pushes the new store to all live WebSocket clients.
 let version = 0;
-function bump() { version++; persist(); }
+let wss = null;   // set once the WebSocket server is created (bottom of file)
+function broadcastStore() {
+  if (!wss) return;
+  const msg = JSON.stringify({ t: 'store', store });
+  wss.clients.forEach((c) => { if (c.readyState === 1) { try { c.send(msg); } catch (e) {} } });
+}
+function bump() { version++; persist(); broadcastStore(); }
 
 // Debounced write so a burst of POSTs doesn't hammer the disk.
 let saveTimer = null;
@@ -167,9 +156,7 @@ app.get('/api/time', (req, res) => {
 // Return the entire store in one shot. The host uses this to read every
 // team's submission/score at once; teams use it to render the leaderboard.
 app.get('/api/all', (req, res) => {
-  // Presence: note that this player is still here (works even when we 304 below).
-  if (req.query.pid) lastSeen[String(req.query.pid)] = Date.now();
-  // Cheap polling: if the client already has the current version, send 304.
+  // Legacy HTTP poller (load tests / fallback). The live app uses WebSockets.
   if (req.query.v !== undefined && Number(req.query.v) === version) return res.status(304).end();
   res.setHeader('X-Store-Version', String(version));
   res.json(store);
@@ -221,8 +208,88 @@ app.post('/api/clearScores', (req, res) => {
   res.json({ ok: true });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`\n  DevRush Arena running:`);
   console.log(`   Local:   http://localhost:${PORT}`);
   console.log(`   Network: http://<your-LAN-ip>:${PORT}  (share this with teams)\n`);
 });
+
+// ---- WebSocket layer: real-time state + exact presence -----------------------
+wss = new WebSocketServer({ server });
+
+function send(ws, msg) { try { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); } catch (e) {} }
+
+// A player's socket closed. In the lobby, remove them at once. Mid-game, keep
+// their slot briefly for a reconnect (a slept phone / flaky wifi), then drop it
+// if they never come back.
+function handlePlayerGone(pid) {
+  if (!pid) return;
+  const inGame = ((store.game || {}).stage || 'lobby') === 'game';
+  const stillConnected = () => [...wss.clients].some((c) => c._pid === pid && c.readyState === 1);
+  if (!inGame) {
+    if (store['player:' + pid]) { delete store['player:' + pid]; bump(); }
+  } else {
+    setTimeout(() => {
+      if (!stillConnected() && store['player:' + pid]) { delete store['player:' + pid]; bump(); }
+    }, MID_GAME_GRACE_MS);
+  }
+}
+
+wss.on('connection', (ws) => {
+  ws._role = null; ws._pid = null; ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
+  send(ws, { t: 'store', store });          // initial snapshot
+
+  ws.on('message', (data) => {
+    let m; try { m = JSON.parse(data); } catch (e) { return; }
+    if (m.t === 'hello') {
+      if (m.role === 'host') {
+        if (m.token && hostTokens.has(m.token)) { ws._role = 'host'; }
+        else { send(ws, { t: 'denied', reason: 'auth' }); }
+      } else if (m.role === 'player' && m.pid) {
+        ws._role = 'player'; ws._pid = String(m.pid);
+        if (m.me) { store['player:' + ws._pid] = { ...m.me, pid: ws._pid, ts: Date.now() }; bump(); }
+      }
+      return;
+    }
+    if (m.t === 'set') {
+      if (isHostKey(m.key) && ws._role !== 'host') { send(ws, { t: 'denied' }); return; }
+      store[m.key] = m.value; bump(); return;
+    }
+    if (m.t === 'del') {
+      if (isHostKey(m.key) && ws._role !== 'host') { send(ws, { t: 'denied' }); return; }
+      delete store[m.key]; bump(); return;
+    }
+    if (m.t === 'leave') {
+      if (ws._pid && store['player:' + ws._pid]) { delete store['player:' + ws._pid]; bump(); }
+      ws._pid = null; return;
+    }
+    if (m.t === 'reset') {
+      if (ws._role !== 'host') { send(ws, { t: 'denied' }); return; }
+      store = {}; store.game = { ...serverDefaultGame(), resetAt: Date.now() };
+      // Bounce every connected player to the landing page so none re-registers.
+      wss.clients.forEach((c) => { if (c._role === 'player') { send(c, { t: 'kicked' }); c._pid = null; } });
+      bump(); return;
+    }
+    if (m.t === 'clearScores') {
+      if (ws._role !== 'host') { send(ws, { t: 'denied' }); return; }
+      for (const k of Object.keys(store)) {
+        if (k.startsWith('pscore:') || k.startsWith('panswer:') || k.startsWith('tscore:') ||
+            k.startsWith('bs:') || k.startsWith('rq:') || k.startsWith('cb:') || k.startsWith('em:') || k.startsWith('lg:')) delete store[k];
+      }
+      bump(); return;
+    }
+  });
+
+  ws.on('close', () => { if (ws._role === 'player') handlePlayerGone(ws._pid); });
+  ws.on('error', () => {});
+});
+
+// Heartbeat: drop half-open sockets (network died without a close frame) so
+// their players are cleaned up. Runs every 30s.
+setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) { try { ws.terminate(); } catch (e) {} return; }
+    ws.isAlive = false; try { ws.ping(); } catch (e) {}
+  });
+}, 30000);
