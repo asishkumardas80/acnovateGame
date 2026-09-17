@@ -993,11 +993,14 @@ function mountTeamGame(round){
     box.appendChild(d);
   }
 }
+// No manual Submit button — scores are captured automatically when the timer
+// hits zero or the host ends the round (and auto-saved continuously as backup).
+// Show a small reassurance note in its place.
 function submitBtn(box){
-  const b=document.createElement('button');
-  b.textContent='Submit';b.style.marginTop='12px';
-  b.onclick=()=>submitActiveGame(false);
-  box.appendChild(b);return b;
+  const n=document.createElement('div');
+  n.className='muted'; n.style.cssText='margin-top:12px;font-size:12px';
+  n.innerHTML='💾 Your answer is saved automatically — no need to submit. Scores lock when the timer ends or the host reveals.';
+  box.appendChild(n); return n;
 }
 function speedBonus(round){ const frac=round.duration? remaining()/round.duration : 0;
   return 60+Math.round(40*clamp(frac,0,1)); }
