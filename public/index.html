@@ -520,7 +520,17 @@ let G = null;                                 // current game state
 let lastKey = '';                             // stage:phase:roundIndex -> rebuild
 let activeGame = null;
 let celebrated = 0;                           // my team's total, for celebration
-let _wasInGame = false, _lobbyBlips = 0;      // guard vs. transient game→lobby blips
+// Anti-flicker: only switch the shown stage (lobby <-> game) after a change has
+// held for 2 consecutive polls, so a stray/oscillating poll (server restart,
+// deploy overlap, out-of-order response) can't flap the screen. Local actions
+// (Start / Reset / Back to Lobby) set _committedStage directly for instant feel.
+let _committedStage = null, _stageCandidate = null, _stageStreak = 0;
+function stableStage(raw){
+  if(raw===_committedStage){ _stageCandidate=null; _stageStreak=0; return _committedStage; }
+  if(raw===_stageCandidate) _stageStreak++; else { _stageCandidate=raw; _stageStreak=1; }
+  if(_committedStage===null || _stageStreak>=2){ _committedStage=raw; _stageCandidate=null; _stageStreak=0; }
+  return _committedStage;
+}
 
 function defaultGame(){ return {stage:'lobby', roundIndex:0, phase:'lobby', tStart:0, duration:0}; }
 
@@ -767,22 +777,13 @@ setInterval(()=>{
 // ============================================================================
 //  PLAYER VIEW
 // ============================================================================
-function startPlayer(){ ROLE='player'; localStorage.setItem('dra_role','player'); lastKey=''; _wasInGame=false; _lobbyBlips=0; celebrated=myTeamTotal(); startPolling(2000); }
+function startPlayer(){ ROLE='player'; localStorage.setItem('dra_role','player'); lastKey=''; _committedStage=null; _stageCandidate=null; _stageStreak=0; celebrated=myTeamTotal(); startPolling(2000); }
 
 function renderPlayer(){
   if(!STORE['player:'+MY.pid]){ // was reset/removed by host -> re-register
     apiSet('player:'+MY.pid,{...MY,ts:serverNow()});
   }
-  const stage=G.stage||'lobby';
-  // Anti-flicker guard: if we're mid-game and a poll suddenly reports 'lobby'
-  // (e.g. the host server restarted/redeployed and its in-memory state briefly
-  // reset, or a stray/out-of-order poll), don't tear the live game down on the
-  // first blip. Only accept the switch to lobby after a few consecutive polls.
-  if(stage==='game'){ _wasInGame=true; _lobbyBlips=0; }
-  else if(_wasInGame){
-    if(++_lobbyBlips<3) return;          // ignore up to 2 stray lobby polls (~a few sec)
-    _wasInGame=false; _lobbyBlips=0;     // confirmed: really back in the lobby
-  }
+  const stage=stableStage(G.stage||'lobby');
   // Include my team in the key EXCEPT during active play, so a late-joiner's
   // assignment refreshes the header/ready screen without tearing down a live game.
   const teamKey = G.phase==='playing' ? '' : (':'+((teamOf(MY.pid)||{}).id||'none'));
@@ -1813,10 +1814,10 @@ function buildTeamReveal(round){
 // ============================================================================
 //  HOST VIEW
 // ============================================================================
-function startHost(){ ROLE='host'; localStorage.setItem('dra_role','host'); lastKey=''; startPolling(2000); }
+function startHost(){ ROLE='host'; localStorage.setItem('dra_role','host'); lastKey=''; _committedStage=null; _stageCandidate=null; _stageStreak=0; startPolling(2000); }
 
 function renderHost(){
-  const stage=G.stage||'lobby';
+  const stage=stableStage(G.stage||'lobby');
   if(stage==='game') reconcileLateJoiners();   // after start, fold late joiners into a team
   const key = stage==='game' ? ('game:'+G.phase+':'+G.roundIndex) : ('lobby:'+teamsMeta().length);
   if(key!==lastKey){ lastKey=key; if(stage==='game') buildHostGameShell(); else buildHostLobby(); }
@@ -1864,7 +1865,7 @@ function buildHostLobby(){
   const st=$('#start'); if(st) st.onclick=startGame;
   const rs=$('#restart'); if(rs) rs.onclick=restartGame;
   $('#reset').onclick=async()=>{ if(confirm('Wipe everyone, teams and scores?')){
-    await apiReset(); await apiSet('game',defaultGame()); poll(); }};
+    await apiReset(); await apiSet('game',defaultGame()); _committedStage='lobby'; poll(); }};
 }
 function refreshHostLobby(){
   const ppl=allPlayers(); const g=$('#people'),c=$('#cntbig');
@@ -1915,10 +1916,11 @@ async function reconcileLateJoiners(){
 
 async function startGame(){
   await apiSet('game',{stage:'game',roundIndex:0,phase:'lobby',tStart:0,duration:0});
+  _committedStage='game';   // instant for the host who clicked it
   beep(880,.15); poll();
 }
 async function backToLobby(){
-  await apiSet('game',{...defaultGame()}); poll();
+  await apiSet('game',{...defaultGame()}); _committedStage='lobby'; poll();
 }
 
 // Clear every score/submission. Uses the fast server endpoint, and falls back to
@@ -2013,7 +2015,7 @@ function buildHostGameShell(){
   $('#restartRound').onclick=restartRound;
   $('#tolobby').onclick=()=>{ if(confirm('Return to the lobby? Current teams stay; you can reshuffle.')) backToLobby(); };
   $('#reset').onclick=async()=>{ if(confirm('Wipe everyone, teams and scores?')){
-    await apiReset(); await apiSet('game',defaultGame()); poll(); }};
+    await apiReset(); await apiSet('game',defaultGame()); _committedStage='lobby'; poll(); }};
   document.querySelectorAll('.roundlist button').forEach(b=>b.onclick=()=>jumpRound(+b.dataset.i));
   if(round.type==='logo') wireLogoAdmin();
   $('#hlb').innerHTML=leaderboardHTML();
