@@ -520,6 +520,7 @@ let G = null;                                 // current game state
 let lastKey = '';                             // stage:phase:roundIndex -> rebuild
 let activeGame = null;
 let celebrated = 0;                           // my team's total, for celebration
+let _wasInGame = false, _lobbyBlips = 0;      // guard vs. transient game→lobby blips
 
 function defaultGame(){ return {stage:'lobby', roundIndex:0, phase:'lobby', tStart:0, duration:0}; }
 
@@ -744,13 +745,22 @@ setInterval(()=>{
 // ============================================================================
 //  PLAYER VIEW
 // ============================================================================
-function startPlayer(){ ROLE='player'; localStorage.setItem('dra_role','player'); lastKey=''; celebrated=myTeamTotal(); startPolling(2000); }
+function startPlayer(){ ROLE='player'; localStorage.setItem('dra_role','player'); lastKey=''; _wasInGame=false; _lobbyBlips=0; celebrated=myTeamTotal(); startPolling(2000); }
 
 function renderPlayer(){
   if(!STORE['player:'+MY.pid]){ // was reset/removed by host -> re-register
     apiSet('player:'+MY.pid,{...MY,ts:serverNow()});
   }
   const stage=G.stage||'lobby';
+  // Anti-flicker guard: if we're mid-game and a poll suddenly reports 'lobby'
+  // (e.g. the host server restarted/redeployed and its in-memory state briefly
+  // reset, or a stray/out-of-order poll), don't tear the live game down on the
+  // first blip. Only accept the switch to lobby after a few consecutive polls.
+  if(stage==='game'){ _wasInGame=true; _lobbyBlips=0; }
+  else if(_wasInGame){
+    if(++_lobbyBlips<3) return;          // ignore up to 2 stray lobby polls (~a few sec)
+    _wasInGame=false; _lobbyBlips=0;     // confirmed: really back in the lobby
+  }
   // Include my team in the key EXCEPT during active play, so a late-joiner's
   // assignment refreshes the header/ready screen without tearing down a live game.
   const teamKey = G.phase==='playing' ? '' : (':'+((teamOf(MY.pid)||{}).id||'none'));
