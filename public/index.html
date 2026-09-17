@@ -697,6 +697,7 @@ function routeJoin(){
     const pid=(MY&&MY.pid)||uid();
     MY={pid,name,emoji,color};
     localStorage.setItem('dra_me',JSON.stringify(MY));
+    localStorage.setItem('dra_joined',String(serverNow()));  // to detect a host "Reset" after we joined
     await apiSet('player:'+pid,{pid,name,emoji,color,ts:serverNow()});
     startPlayer();
   };
@@ -780,6 +781,14 @@ setInterval(()=>{
 function startPlayer(){ ROLE='player'; localStorage.setItem('dra_role','player'); lastKey=''; _committedStage=null; _stageCandidate=null; _stageStreak=0; celebrated=myTeamTotal(); startPolling(2000); }
 
 function renderPlayer(){
+  // If the host wiped everything (Reset) AFTER we joined, bounce to the landing
+  // page instead of silently re-registering as a ghost.
+  const joined=Number(localStorage.getItem('dra_joined')||'0');
+  if(G && G.resetAt && joined && G.resetAt>joined){
+    clearInterval(pollTimer); lastKey='';
+    localStorage.removeItem('dra_me'); localStorage.removeItem('dra_joined');
+    MY=null; routeLanding(); return;
+  }
   if(!STORE['player:'+MY.pid]){ // was reset/removed by host -> re-register
     apiSet('player:'+MY.pid,{...MY,ts:serverNow()});
   }
@@ -1865,7 +1874,7 @@ function buildHostLobby(){
   const st=$('#start'); if(st) st.onclick=startGame;
   const rs=$('#restart'); if(rs) rs.onclick=restartGame;
   $('#reset').onclick=async()=>{ if(confirm('Wipe everyone, teams and scores?')){
-    await apiReset(); await apiSet('game',defaultGame()); _committedStage='lobby'; poll(); }};
+    await apiReset(); await apiSet('game',{...defaultGame(),resetAt:serverNow()}); _committedStage='lobby'; poll(); }};
 }
 function refreshHostLobby(){
   const ppl=allPlayers(); const g=$('#people'),c=$('#cntbig');
@@ -2015,7 +2024,7 @@ function buildHostGameShell(){
   $('#restartRound').onclick=restartRound;
   $('#tolobby').onclick=()=>{ if(confirm('Return to the lobby? Current teams stay; you can reshuffle.')) backToLobby(); };
   $('#reset').onclick=async()=>{ if(confirm('Wipe everyone, teams and scores?')){
-    await apiReset(); await apiSet('game',defaultGame()); _committedStage='lobby'; poll(); }};
+    await apiReset(); await apiSet('game',{...defaultGame(),resetAt:serverNow()}); _committedStage='lobby'; poll(); }};
   document.querySelectorAll('.roundlist button').forEach(b=>b.onclick=()=>jumpRound(+b.dataset.i));
   if(round.type==='logo') wireLogoAdmin();
   $('#hlb').innerHTML=leaderboardHTML();
