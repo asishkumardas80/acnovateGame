@@ -860,8 +860,9 @@ function buildPlayerLobby(){
     <div class="card center">
       ${avatarHTML(MY,'lg')}
       <h2 style="margin-top:8px">You're in, ${esc(MY.name)}!</h2>
-      <p class="muted">Teams are picked randomly by the host. Sit tight — the game will start soon.</p>
+      <p class="muted" id="lobbymsg">Teams are picked randomly by the host. Sit tight — the game will start soon.</p>
     </div>
+    <div id="myteam"></div>
     <div class="card">
       <div class="row" style="justify-content:space-between;align-items:center">
         <h3>In the lobby</h3>
@@ -876,6 +877,22 @@ function refreshLobbyPlayer(){
   if(c) c.textContent=ppl.length;
   if(g) g.innerHTML=ppl.map(p=>`<div class="person">${avatarHTML(p)}
     <span class="nm">${esc(p.name)}${p.pid===MY.pid?' (you)':''}</span></div>`).join('');
+  // Show the player their team as soon as the host builds/reshuffles it.
+  const mt=$('#myteam'), msg=$('#lobbymsg'), t=teamOf(MY.pid);
+  if(mt){
+    if(t){
+      const mates=teamMembers(t);
+      mt.innerHTML=`<div class="card" style="border:2px solid ${esc(t.color)}">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h3><span class="dot" style="background:${esc(t.color)}"></span> You're on ${esc(t.name)}</h3>
+          <span class="pill" style="background:${esc(t.color)}22;border-color:${esc(t.color)};color:${esc(t.color)}">${mates.length} members</span>
+        </div>
+        <div class="members">${mates.map(m=>`<span class="memchip">${avatarHTML(m,'sm')}${esc(m.name)}${m.pid===MY.pid?' (you)':''}</span>`).join('')}</div>
+        <p class="muted" style="font-size:12px;margin-top:8px">Teams may still be reshuffled. The game starts when the host is ready. 💪</p></div>`;
+      if(msg) msg.textContent='Your team is set! Meet your teammates below. 🎉';
+    } else { mt.innerHTML='';
+      if(msg) msg.textContent='Teams are picked randomly by the host. Sit tight — the game will start soon.'; }
+  }
 }
 
 // ---- Player: game ----------------------------------------------------------
@@ -1887,7 +1904,7 @@ function buildHostLobby(){
         <span class="grow"></span>
         <button class="warn" id="reset">Reset everything</button>
       </div>
-      <p class="muted" style="font-size:12px;margin-top:6px" id="tnote">With <b>${teamTarget}</b> per team, <b id="tcalc">0</b> players ≈ <b id="tteams">0</b> teams. Random & balanced; players see their team only when the game starts.</p>
+      <p class="muted" style="font-size:12px;margin-top:6px" id="tnote">With <b>${teamTarget}</b> per team, <b id="tcalc">0</b> players ≈ <b id="tteams">0</b> teams. Random & balanced; players see their team as soon as you build it.</p>
     </div>
     <div id="teampreview"></div>`;
   $('#leave').onclick=()=>{disconnectWS();lastKey='';routeLanding();};
