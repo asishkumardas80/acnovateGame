@@ -50,19 +50,22 @@ function requireHost(req, res) {
 // an active game (a slept/backgrounded phone must keep its team slot).
 const lastSeen = {};                 // pid -> last time we heard from them (ms)
 const bootTime = Date.now();
-const STALE_MS = 40000;              // gone if not seen for 40s
+const STALE_MS = 40000;              // in the lobby: gone if not seen for 40s
+const GAME_STALE_MS = 120000;        // mid-game: a longer window so a briefly-slept active player keeps their slot
 const BOOT_GRACE_MS = 60000;         // grace for persisted players to reconnect after a restart
 function pruneStalePlayers() {
-  const g = store.game || {};
-  if ((g.stage || 'lobby') === 'game') return;   // never prune mid-game
   const now = Date.now();
+  const inGame = ((store.game || {}).stage || 'lobby') === 'game';
+  const staleMs = inGame ? GAME_STALE_MS : STALE_MS;
   let removed = 0;
   for (const key of Object.keys(store)) {
     if (!key.startsWith('player:')) continue;
     const pid = key.slice(7);
     const seen = lastSeen[pid];
-    const gone = seen ? (now - seen > STALE_MS)          // polled, then went silent
-                      : (now - bootTime > BOOT_GRACE_MS); // never polled since boot (e.g. an old persisted ghost)
+    // Gone if they polled then went silent past the window, OR never polled at
+    // all since boot (an old persisted ghost from a previous session).
+    const gone = seen ? (now - seen > staleMs)
+                      : (now - bootTime > BOOT_GRACE_MS);
     if (gone) { delete store[key]; delete lastSeen[pid]; removed++; }
   }
   if (removed) bump();
