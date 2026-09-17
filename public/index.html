@@ -928,6 +928,27 @@ function submitActiveGame(isTimeout){
   if(res.score!=null){ res.score>0?sndGood():sndBad(); }
 }
 
+// Continuously bank the player's CURRENT score during an individual round, so a
+// score still counts even if the final auto-submit never fires (phone locks, tab
+// backgrounded, host reveals early). Writes pscore only (not panswer), so it does
+// NOT lock the player out or mark them "done" — they can keep improving, and an
+// explicit/time-up submit overwrites this with the final value.
+let lastAutoScore=-1;
+function autosaveProgress(){
+  if(ROLE!=='player'||!MY||!G||G.phase!=='playing'||!activeGame||activeGame.submitted) return;
+  const round=ROUNDS[G.roundIndex]; if(!round) return;
+  if(['brainstorm','codebreak','relay','emoji','logoguess'].includes(round.type)) return; // team games are derived
+  let res={}; try{ res=activeGame.finalize(false)||{}; }catch(e){ return; }
+  if(typeof res.score!=='number' || res.score===lastAutoScore) return;
+  lastAutoScore=res.score;
+  apiSet('pscore:'+G.roundIndex+':'+MY.pid, res.score);
+}
+setInterval(autosaveProgress, 3000);
+// Flush the current score the moment the tab is hidden or the page is closing
+// (e.g. the phone screen locks) — the last chance to run JS before it freezes.
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) autosaveProgress(); });
+window.addEventListener('pagehide', autosaveProgress);
+
 function refreshSubmitCount(){
   const t=teamOf(MY.pid); if(!t) return;
   const m=teamMembers(t); const done=m.filter(p=>STORE['panswer:'+G.roundIndex+':'+p.pid]).length;
@@ -944,6 +965,7 @@ function mountTeamGame(round){
   const collaborative = ['brainstorm','codebreak','relay','emoji','logoguess'].includes(round.type);
   const already = !collaborative && STORE['panswer:'+G.roundIndex+':'+MY.pid];
   activeGame={round,submitted:false,finalize:()=>({}),cleanup:null};
+  lastAutoScore=-1;   // reset per-round autosave tracker
   switch(round.type){
     case 'copy':      gameCopy(box,round); break;
     case 'text':      gameText(box,round); break;
