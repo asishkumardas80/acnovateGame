@@ -11,7 +11,12 @@ let compression = null; try { compression = require('compression'); } catch (e) 
 const app = express();
 if (compression) app.use(compression());   // gzip responses (big win for /api/all at scale)
 const PORT = process.env.PORT || 3000;
-const DATA_FILE = path.join(__dirname, 'data.json');
+// Where to persist the store. Set DATA_DIR to a mounted persistent disk (e.g.
+// /data on Render Starter) so game state survives restarts and redeploys.
+// Falls back to the app folder for local dev / free tier (ephemeral).
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
+const DATA_FILE = path.join(DATA_DIR, 'data.json');
 const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
 
 // ---- Host authentication ---------------------------------------------------

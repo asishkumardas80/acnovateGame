@@ -4,8 +4,17 @@ services:
   - type: web
     name: devrush-arena
     runtime: node
-    plan: free
+    plan: starter            # $7/mo: no cold starts, supports a persistent disk
     buildCommand: npm install
     startCommand: node server.js
-    autoDeploy: true
+    autoDeploy: true         # tip: turn OFF during a live event so a push can't restart mid-game
     healthCheckPath: /api/time
+    envVars:
+      - key: DATA_DIR        # persist the store on the mounted disk below
+        value: /data
+      - key: HOST_CODE       # set your own secret in the dashboard (Environment tab)
+        sync: false
+    disk:
+      name: data
+      mountPath: /data       # game state (data.json) lives here, survives restarts
+      sizeGB: 1
