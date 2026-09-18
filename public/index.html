@@ -408,7 +408,7 @@ const GAME_HELP = {
   r2:{how:'Move with the arrow keys or on-screen pad through the fog. Grab every gold coin, then reach the red exit to clear the level. Each level you clear gets bigger.',
       pts:'+5 per coin and +20 per level cleared (up to 100).'},
   r3:{how:'A Java method sums the POSITIVE even numbers, but the if-condition is blanked out. Type the missing Java condition (using num, >, %, ==, &&) and hit “Run tests” — it shows any failing cases.',
-      ex:'The method loops each num and adds it when your condition is true. Correct answer looks like: num > 0 && num % 2 == 0 (positive AND even).',
+      ex:'The loop adds each num only when your condition is true. You need TWO checks joined with &&: one for “positive”, one for “even”. Java uses % for remainder and == to compare.',
       pts:'Score = the % of the 8 test cases your condition passes (up to 100). Watch the tricky one: negative evens must NOT be added.'},
   r4:{how:'Read the code snippet and pick what it prints to the console.',
       pts:'Correct answer scores up to 100 — the sooner you answer, the more you get.'},
@@ -1608,7 +1608,7 @@ function gameJavaFill(box,round){
   const codeHTML=esc(round.code).replace('/* ??? */','<span class="blank">/* type the condition */</span>');
   box.innerHTML=`<pre class="code">${codeHTML}</pre>
     <label class="muted" style="font-size:13px;display:block;margin-top:10px">Type the missing <b>if</b> condition (Java):</label>
-    <input id="jf" placeholder="e.g. num &gt; 0 &amp;&amp; num % 2 == 0" autocomplete="off" autocapitalize="off" spellcheck="false"
+    <input id="jf" placeholder="type your condition here…" autocomplete="off" autocapitalize="off" spellcheck="false"
       style="font-family:ui-monospace,Consolas,monospace"/>
     <div class="row" style="margin-top:10px"><button class="ghost" id="run">▶ Run tests</button></div>
     <div id="tr" class="muted" style="margin-top:8px"></div>`;
