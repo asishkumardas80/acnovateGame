@@ -1765,9 +1765,15 @@ function gameMemory(box,round){
     input.push(i); drawDots(); const k=input.length-1;
     if(input[k]!==seq[k]){ accepting=false; best=level-1; sndBad(); grid.classList.add('watch');
       st.innerHTML='❌ Wrong! Reached <b>level '+best+'</b> — submitting…'; setTimeout(()=>submitActiveGame(false),750); return; }
-    if(input.length===seq.length){ accepting=false; best=level; sndGood(); confetti(30);
+    if(input.length===seq.length){ accepting=false; best=level;
       st.innerHTML='✅ Level '+level+' cleared!'; setTimeout(next,800); } });
-  setTimeout(next,600);
+  // "Get ready" countdown so players are prepared before the first pattern plays.
+  function countdown(n){
+    if(n>0){ st.innerHTML='Get ready… <b style="font-size:30px;color:var(--accent)">'+n+'</b>';
+      setTimeout(()=>countdown(n-1),900); }
+    else { st.innerHTML='<b style="font-size:26px;color:var(--green)">Go! 👀</b>'; setTimeout(next,600); }
+  }
+  countdown(3);
   activeGame.finalize=()=>({score:clamp(best*12,0,100),display:'reached level '+best});
 }
 function gameReaction(box,round){
