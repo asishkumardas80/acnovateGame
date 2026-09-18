@@ -2066,7 +2066,8 @@ function gameLogo(box,round){
 // 13) Logo Guess — TEAM game: all logos, one every LOGO_PER sec (auto-advancing,
 // synced), anyone on the team spells it to lock it. Max 2 hints per player.
 const LOGO_PER=30;            // seconds each logo is shown
-let logoHints=0;              // per-player hint uses this round
+let logoHints=0;              // hint uses on the CURRENT logo (2 allowed per logo)
+let logoHintsFor=-1;          // which logo index logoHints belongs to (resets per logo)
 function logoOrder(round){ const pool=round.logos||[]; const rnd=mulberry32((G.tStart||1)+9);
   const idx=[...pool.keys()]; for(let i=idx.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]];}
   return idx.map(i=>pool[i]); }
@@ -2079,7 +2080,7 @@ function logoSolvedCount(round,teamId,r){ let n=0; for(let i=0;i<(round.logos||[
 function gameLogoGuess(box,round){
   const t=teamOf(MY.pid); activeGame.submitted=true; activeGame.finalize=()=>({});
   if(!t){ box.innerHTML='<p class="muted">Waiting to be put on a team…</p>'; return; }
-  logoHints=0;
+  logoHints=0; logoHintsFor=-1;
   box.innerHTML='<div id="lgwrap"></div>';
   renderLogoGuess();
 }
@@ -2087,6 +2088,7 @@ function renderLogoGuess(){
   const wrap=document.getElementById('lgwrap'); if(!wrap) return;
   const r=G.roundIndex, round=ROUNDS[r], t=teamOf(MY.pid); if(!t) return;
   const list=logoOrder(round), total=list.length, cur=logoCurrent(round);
+  if(logoHintsFor!==cur){ logoHints=0; logoHintsFor=cur; }   // fresh 2 hints for each new logo
   const L=list[cur], answer=L.answer.toUpperCase().replace(/[^A-Z0-9]/g,'');
   const solved=STORE['lg:'+r+':'+t.id+':'+cur];
   const solvedCount=logoSolvedCount(round,t.id,r);
