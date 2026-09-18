@@ -457,39 +457,39 @@ const ROUNDS = [
         'The relationship between parent and children is central to the movie.']}
     ] },
 
-  { id:'r10', type:'relay', title:'What Comes Next?', duration:200, max:100,
-    prompt:'Spot the pattern and pick what comes next! TEAM game — discuss in chat, anyone locks the team’s answer. A new puzzle every 20 seconds.',
+  { id:'r10', type:'relay', title:'What Comes Next?', duration:150, perSec:15, max:100,
+    prompt:'Spot the pattern and pick what comes next! TEAM game — discuss in chat, anyone locks the team’s answer. A new puzzle every 15 seconds. Watch for TWO things changing at once!',
     questions:[
-      // 1) alternating up / down triangle -> next is down
-      {cat:'🧩 What comes next?', seq:[{t:'tri',dir:'u'},{t:'tri',dir:'d'},{t:'tri',dir:'u'},{t:'tri',dir:'d'},{t:'tri',dir:'u'}],
-        opts:[{t:'tri',dir:'u'},{t:'tri',dir:'d'},{t:'tri',dir:'r'},{t:'tri',dir:'l'}], answerIndex:1},
-      // 2) triangle rotating u,r,d,l (period 4) -> next is down
-      {cat:'🧩 What comes next?', seq:[{t:'tri',dir:'u'},{t:'tri',dir:'r'},{t:'tri',dir:'d'},{t:'tri',dir:'l'},{t:'tri',dir:'u'},{t:'tri',dir:'r'}],
-        opts:[{t:'tri',dir:'u'},{t:'tri',dir:'r'},{t:'tri',dir:'d'},{t:'tri',dir:'l'}], answerIndex:2},
-      // 3) pie: shaded slice rotates 0,1,2,3 -> 4
-      {cat:'🧩 What comes next?', seq:[{t:'ps',n:8,at:0},{t:'ps',n:8,at:1},{t:'ps',n:8,at:2},{t:'ps',n:8,at:3}],
-        opts:[{t:'ps',n:8,at:4},{t:'ps',n:8,at:2},{t:'ps',n:8,at:6},{t:'ps',n:8,at:0}], answerIndex:0},
-      // 4) pie fill 1,2,3,4 -> 5
-      {cat:'🧩 What comes next?', seq:[{t:'pf',n:8,k:1},{t:'pf',n:8,k:2},{t:'pf',n:8,k:3},{t:'pf',n:8,k:4}],
-        opts:[{t:'pf',n:8,k:4},{t:'pf',n:8,k:6},{t:'pf',n:8,k:3},{t:'pf',n:8,k:5}], answerIndex:3},
-      // 5) square shaded column 0,1,2 (period 3) -> back to 0
-      {cat:'🧩 What comes next?', seq:[{t:'sq',dir:'v',n:3,sh:0},{t:'sq',dir:'v',n:3,sh:1},{t:'sq',dir:'v',n:3,sh:2}],
-        opts:[{t:'sq',dir:'v',n:3,sh:1},{t:'sq',dir:'v',n:3,sh:2},{t:'sq',dir:'v',n:3,sh:0},{t:'sq',dir:'h',n:3,sh:0}], answerIndex:2},
-      // 6) square divisions alternate vertical / horizontal -> next vertical
-      {cat:'🧩 What comes next?', seq:[{t:'sq',dir:'v',n:2,sh:0},{t:'sq',dir:'h',n:2,sh:0},{t:'sq',dir:'v',n:2,sh:0},{t:'sq',dir:'h',n:2,sh:0}],
-        opts:[{t:'sq',dir:'h',n:2,sh:0},{t:'sq',dir:'v',n:2,sh:0},{t:'sq',dir:'v',n:3,sh:0},{t:'sq',dir:'h',n:2,sh:1}], answerIndex:1},
-      // 7) triangle outline / filled alternate -> next outline
-      {cat:'🧩 What comes next?', seq:[{t:'tri',dir:'u'},{t:'tri',dir:'u',f:1},{t:'tri',dir:'u'},{t:'tri',dir:'u',f:1}],
-        opts:[{t:'tri',dir:'u'},{t:'tri',dir:'u',f:1},{t:'tri',dir:'d'},{t:'tri',dir:'d',f:1}], answerIndex:0},
-      // 8) pie (6 slices) shaded slice moves back 5,4,3,2 -> 1
-      {cat:'🧩 What comes next?', seq:[{t:'ps',n:6,at:5},{t:'ps',n:6,at:4},{t:'ps',n:6,at:3},{t:'ps',n:6,at:2}],
-        opts:[{t:'ps',n:6,at:2},{t:'ps',n:6,at:0},{t:'ps',n:6,at:3},{t:'ps',n:6,at:1}], answerIndex:3},
-      // 9) pie fill by twos 2,4,6 -> 8
-      {cat:'🧩 What comes next?', seq:[{t:'pf',n:8,k:2},{t:'pf',n:8,k:4},{t:'pf',n:8,k:6}],
-        opts:[{t:'pf',n:8,k:7},{t:'pf',n:8,k:8},{t:'pf',n:8,k:6},{t:'pf',n:8,k:5}], answerIndex:1},
-      // 10) square with more divisions each step 2,3,4 -> 5
-      {cat:'🧩 What comes next?', seq:[{t:'sq',dir:'v',n:2},{t:'sq',dir:'v',n:3},{t:'sq',dir:'v',n:4}],
-        opts:[{t:'sq',dir:'v',n:4},{t:'sq',dir:'v',n:6},{t:'sq',dir:'v',n:5},{t:'sq',dir:'h',n:5}], answerIndex:2}
+      // 1) rotates u,r,d,l AND toggles fill each step -> next is right + filled
+      {cat:'🧩 What comes next?', seq:[{t:'tri',dir:'u'},{t:'tri',dir:'r',f:1},{t:'tri',dir:'d'},{t:'tri',dir:'l',f:1},{t:'tri',dir:'u'}],
+        opts:[{t:'tri',dir:'r'},{t:'tri',dir:'d',f:1},{t:'tri',dir:'r',f:1},{t:'tri',dir:'l',f:1}], answerIndex:2},
+      // 2) shaded slice jumps +2 each step (0,2,4,6 -> 0)
+      {cat:'🧩 What comes next?', seq:[{t:'ps',n:8,at:0},{t:'ps',n:8,at:2},{t:'ps',n:8,at:4},{t:'ps',n:8,at:6}],
+        opts:[{t:'ps',n:8,at:0},{t:'ps',n:8,at:7},{t:'ps',n:8,at:1},{t:'ps',n:8,at:5}], answerIndex:0},
+      // 3) two shapes interleaved: triangle, pie(0), triangle, pie(1), triangle -> pie(2)
+      {cat:'🧩 What comes next?', seq:[{t:'tri',dir:'u'},{t:'ps',n:8,at:0},{t:'tri',dir:'u'},{t:'ps',n:8,at:1},{t:'tri',dir:'u'}],
+        opts:[{t:'tri',dir:'u'},{t:'ps',n:8,at:1},{t:'ps',n:8,at:3},{t:'ps',n:8,at:2}], answerIndex:3},
+      // 4) fill columns 0,1,2 then rows 0,1 -> row 2
+      {cat:'🧩 What comes next?', seq:[{t:'sq',dir:'v',n:3,sh:0},{t:'sq',dir:'v',n:3,sh:1},{t:'sq',dir:'v',n:3,sh:2},{t:'sq',dir:'h',n:3,sh:0},{t:'sq',dir:'h',n:3,sh:1}],
+        opts:[{t:'sq',dir:'h',n:3,sh:1},{t:'sq',dir:'h',n:3,sh:2},{t:'sq',dir:'v',n:3,sh:0},{t:'sq',dir:'h',n:3,sh:0}], answerIndex:1},
+      // 5) triangle rotates counter-clockwise u,l,d,r,u -> l
+      {cat:'🧩 What comes next?', seq:[{t:'tri',dir:'u'},{t:'tri',dir:'l'},{t:'tri',dir:'d'},{t:'tri',dir:'r'},{t:'tri',dir:'u'}],
+        opts:[{t:'tri',dir:'u'},{t:'tri',dir:'d'},{t:'tri',dir:'l'},{t:'tri',dir:'r'}], answerIndex:2},
+      // 6) pie fill bounces up then down 2,4,6,4 -> 2
+      {cat:'🧩 What comes next?', seq:[{t:'pf',n:8,k:2},{t:'pf',n:8,k:4},{t:'pf',n:8,k:6},{t:'pf',n:8,k:4}],
+        opts:[{t:'pf',n:8,k:4},{t:'pf',n:8,k:6},{t:'pf',n:8,k:2},{t:'pf',n:8,k:8}], answerIndex:2},
+      // 7) divisions +1 each step AND alternate v/h: v2,h3,v4,h5 -> v6
+      {cat:'🧩 What comes next?', seq:[{t:'sq',dir:'v',n:2},{t:'sq',dir:'h',n:3},{t:'sq',dir:'v',n:4},{t:'sq',dir:'h',n:5}],
+        opts:[{t:'sq',dir:'h',n:6},{t:'sq',dir:'v',n:5},{t:'sq',dir:'v',n:7},{t:'sq',dir:'v',n:6}], answerIndex:3},
+      // 8) shaded slice jumps +3 each step (0,3,6,1 -> 4)
+      {cat:'🧩 What comes next?', seq:[{t:'ps',n:8,at:0},{t:'ps',n:8,at:3},{t:'ps',n:8,at:6},{t:'ps',n:8,at:1}],
+        opts:[{t:'ps',n:8,at:7},{t:'ps',n:8,at:2},{t:'ps',n:8,at:4},{t:'ps',n:8,at:5}], answerIndex:2},
+      // 9) 6-slice shaded jumps +2 (0,2,4,0 -> 2)
+      {cat:'🧩 What comes next?', seq:[{t:'ps',n:6,at:0},{t:'ps',n:6,at:2},{t:'ps',n:6,at:4},{t:'ps',n:6,at:0}],
+        opts:[{t:'ps',n:6,at:2},{t:'ps',n:6,at:4},{t:'ps',n:6,at:1},{t:'ps',n:6,at:5}], answerIndex:0},
+      // 10) shaded cell bounces 0,1,2,1 -> 0 (period 4 on a 4-bar square)
+      {cat:'🧩 What comes next?', seq:[{t:'sq',dir:'v',n:4,sh:0},{t:'sq',dir:'v',n:4,sh:1},{t:'sq',dir:'v',n:4,sh:2},{t:'sq',dir:'v',n:4,sh:1}],
+        opts:[{t:'sq',dir:'v',n:4,sh:1},{t:'sq',dir:'v',n:4,sh:0},{t:'sq',dir:'v',n:4,sh:2},{t:'sq',dir:'v',n:4,sh:3}], answerIndex:1}
     ] },
 
   { id:'r12', type:'bughunt', title:'Bug Hunt', duration:90, max:100,
@@ -1539,12 +1539,13 @@ async function refreshCodebreak(){
 // 7) Team Relay Quiz — questions auto-advance every RELAY_PER seconds, in sync
 // for the whole team (driven by the shared start time). Anyone answers the
 // CURRENT question; it locks + shows green/red + who answered, on everyone's screen.
-const RELAY_PER=20; // seconds shown per question (auto-advance)
-function relayCurrent(r){ const total=(ROUNDS[r].questions||[]).length;
+const RELAY_PER=20; // default seconds shown per question (a round can override via perSec)
+function relayPer(r){ return (ROUNDS[r]&&ROUNDS[r].perSec)||RELAY_PER; }
+function relayCurrent(r){ const total=(ROUNDS[r].questions||[]).length, P=relayPer(r);
   if(!G.tStart||G.phase!=='playing') return 0;
-  return clamp(Math.floor((serverNow()-G.tStart)/(RELAY_PER*1000)),0,total-1); }
-function relaySecLeft(){ if(!G.tStart) return RELAY_PER;
-  const e=(serverNow()-G.tStart)/1000; return clamp(RELAY_PER-Math.floor(e%RELAY_PER),0,RELAY_PER); }
+  return clamp(Math.floor((serverNow()-G.tStart)/(P*1000)),0,total-1); }
+function relaySecLeft(){ const P=relayPer(G.roundIndex); if(!G.tStart) return P;
+  const e=(serverNow()-G.tStart)/1000; return clamp(P-Math.floor(e%P),0,P); }
 function relaySig(t,r){ const cur=relayCurrent(r); const a=STORE['rq:'+r+':'+t.id+':'+cur];
   return cur+'|'+(a?a.choice:'-'); }
 function gameRelay(box,round){
@@ -1608,7 +1609,7 @@ function renderRelay(){
     ${visual?`<div class="patopts">${opts}</div>`:opts}
     ${ans
       ? `<div class="muted" style="margin-top:8px">${ans.choice===q.answerIndex?'✅ Correct':'❌ Wrong'} — answered by <b>${esc(ans.by)}</b></div>`
-      : `<div class="muted" style="font-size:12px;margin-top:6px">Discuss in team chat, then anyone taps the answer — it locks for everyone. Auto-advances every ${RELAY_PER}s.</div>`}`;
+      : `<div class="muted" style="font-size:12px;margin-top:6px">Discuss in team chat, then anyone taps the answer — it locks for everyone. Auto-advances every ${relayPer(r)}s.</div>`}`;
   if(!ans) box.querySelectorAll('.reopt').forEach(b=>b.onclick=async()=>{
     if(STORE['rq:'+r+':'+t.id+':'+cur] || relayCurrent(r)!==cur) return;  // locked, or window passed
     box.querySelectorAll('.reopt').forEach(x=>x.disabled=true);
