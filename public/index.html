@@ -322,7 +322,7 @@ const ROUNDS = [
     prompt:'Unscramble as many tech terms as you can in 60 seconds! Type a word and hit ✓ to lock it in. Use ◀ Back / Next ▶ to jump between words.',
     words:['ARRAY','CLASS','DEBUG','SERVER','PYTHON','BROWSER','COMPILER','FUNCTION','KEYBOARD','NETWORK'] },
 
-  { id:'r6', type:'codebreak', title:'Code Breakers', duration:360, max:100,
+  { id:'r6', type:'codebreak', title:'Code Breakers', duration:180, max:100,
     prompt:'Your team shares one vault. Each teammate owns ONE digit: solve your own riddle and type your single digit — the vault unlocks when everyone’s digit is correct. Fastest team scores highest!' },
 
   { id:'r7', type:'relay', title:'Team Relay Quiz', duration:300, max:100,
@@ -2227,6 +2227,9 @@ document.addEventListener('keydown', e=>{
   if(e.ctrlKey && k==='u') { e.preventDefault(); return; }                // view-source
   if((e.ctrlKey||e.metaKey) && e.shiftKey && ['i','j','c'].includes(k)) e.preventDefault(); // devtools
 });
+// Site-wide anti-cheat: block copy / cut / paste everywhere (Ctrl+C/X/V,
+// right-click, and the edit menu all fire these events).
+['copy','cut','paste'].forEach(ev=>document.addEventListener(ev, e=>e.preventDefault()));
 
 // ============================================================================
 //  BOOT
