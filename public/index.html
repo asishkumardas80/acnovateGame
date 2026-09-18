@@ -446,9 +446,20 @@ const ROUNDS = [
         'The relationship between parent and children is central to the movie.']}
     ] },
 
-  { id:'r10', type:'text', title:'Cipher Crack', duration:120, max:100,
-    prompt:'Decode this Caesar cipher (each letter shifted forward by 6):', puzzle:'IXGIQ ZNK YKIXKZ IUJK',
-    answer:'CRACK THE SECRET CODE', hint:'Shift every letter back by 6 (I→C, X→R, G→A …).' },
+  { id:'r10', type:'relay', title:'What Comes Next?', duration:200, max:100,
+    prompt:'Spot the pattern and pick what comes next! TEAM game — discuss in chat, anyone locks the team’s answer. A new puzzle every 20 seconds.',
+    questions:[
+      {cat:'🔺 What comes next?', q:'△ ▽ △ ▽ △ ▽ ?', options:['▽','△','▷','◁'], answerIndex:1},
+      {cat:'🔄 What comes next?', q:'△ ▷ ▽ ◁ △ ▷ ▽ ?', options:['◁','△','▽','▷'], answerIndex:0},
+      {cat:'🌓 What comes next?', q:'○ ◔ ◑ ◕ ?', options:['◕','○','◑','●'], answerIndex:3},
+      {cat:'🔢 What comes next?', q:'2, 4, 8, 16, ?', options:['32','24','20','64'], answerIndex:0},
+      {cat:'🔤 What comes next?', q:'A, C, E, G, ?', options:['H','J','K','I'], answerIndex:3},
+      {cat:'🔢 What comes next?', q:'1, 1, 2, 3, 5, ?', options:['6','8','7','10'], answerIndex:1},
+      {cat:'➡️ What comes next?', q:'→ ↓ ← ↑ → ↓ ?', options:['↑','←','→','↓'], answerIndex:1},
+      {cat:'🔢 What comes next?', q:'1, 4, 9, 16, ?', options:['20','24','25','30'], answerIndex:2},
+      {cat:'🔺 What comes next?', q:'▲ · ▲▲ · ▲▲▲ · ▲▲▲▲ · ?', options:['▲▲▲','▲▲','▲▲▲▲▲','▲▲▲▲▲▲'], answerIndex:2},
+      {cat:'🔢 What comes next?', q:'3, 6, 12, 24, ?', options:['36','30','48','60'], answerIndex:2}
+    ] },
 
   { id:'r12', type:'bughunt', title:'Bug Hunt', duration:90, max:100,
     prompt:'This factorial function has ONE bug. Which line number is wrong?',
@@ -507,9 +518,9 @@ const GAME_HELP = {
   r9:{how:'Guess the Bollywood movie from the clues! A new movie appears every 15 seconds and auto-advances — read the clues and tap your answer before time’s up. 10 movies in all.',
       ex:'Clues like “Rani travels to Paris alone after her wedding is called off” point to the movie – tap the right title from the four options.',
       pts:'10 points per correct movie (all 10 = 100).'},
-  r10:{how:'A Caesar cipher shifts every letter forward along the alphabet by a fixed amount. Shift each letter back (the hint tells you by how much) to reveal the message, then type it.',
-      ex:'Example with a shift of 3: K→H, H→E, O→L, O→L, R→O — so “KHOOR” decodes to “HELLO”. (This round uses a different shift — check the hint.)',
-      pts:'Correct answer scores up to 100 — the sooner you decode it, the more you get.'},
+  r10:{how:'A TEAM game! Each puzzle shows a sequence of shapes, arrows or numbers — figure out the pattern and pick what comes next. Everyone sees the same puzzle; discuss in chat and anyone locks the team’s answer. A new puzzle every 20 seconds.',
+      ex:'Sequence 2, 4, 8, 16, ? — each number doubles, so the answer is 32. Or △ ▽ △ ▽ △ ▽ ? — it alternates, so the answer is △.',
+      pts:'Points for every puzzle your team gets right (all 10 = 100). One shared team score.'},
   r11:{how:'A TEAM game! 10 emoji puzzles — each pair of emojis hints at a famous brand or app. Discuss in team chat and anyone can lock in a guess for any puzzle.',
       ex:'🍏 (apple) + 📱 (phone) → the brand “APPLE”. Type your guess under each puzzle and hit Guess.',
       pts:'10 points per correct puzzle your team cracks (all 10 = 100). One shared team score.'},
