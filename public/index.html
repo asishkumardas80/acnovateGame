@@ -86,6 +86,7 @@
   .opt.wrong{background:rgba(255,84,112,.18);border-color:var(--red)}
   pre.code{background:#0a0f22;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;
     font:13px/1.55 ui-monospace,Consolas,monospace;color:#d6e0ff}
+  pre.code .blank{background:rgba(255,210,87,.22);color:#ffd257;border:1px dashed #ffd257;border-radius:5px;padding:0 6px}
   code{background:#0a0f22;color:#d6e0ff;border-radius:5px;padding:1px 6px;
     font-family:ui-monospace,Consolas,monospace;font-size:.9em}
   .maze{display:grid;gap:0;background:#0a0f22;border-radius:10px;padding:8px;width:max-content;
@@ -282,10 +283,14 @@ const ROUNDS = [
   { id:'r2', type:'maze', title:'Maze Runner', duration:120, max:100, cols:10, rows:7,
     prompt:'Explore the fog! Collect ALL the gold coins, then reach the RED exit to clear the level — each level gets bigger. Arrow keys or the on-screen pad. More coins + levels = more points.' },
 
-  { id:'r3', type:'code', title:'Code Sprint', duration:240, max:100,
-    prompt:'Write sumEven(arr) that returns the sum of the POSITIVE even numbers only — ignore negatives and zero!',
+  { id:'r3', type:'javafill', title:'Java Code Sprint', duration:240, max:100,
+    prompt:'This Java method should return the sum of the POSITIVE even numbers only — ignore negatives and zero. Fill in the missing if-condition!',
     functionName:'sumEven',
-    starter:'function sumEven(arr) {\n  // your code here\n  \n}',
+    code:'public static int sumEven(int[] arr) {\n    int sum = 0;\n    for (int num : arr) {\n        if ( /* ??? */ ) {\n            sum += num;\n        }\n    }\n    return sum;\n}',
+    // The typed Java condition is dropped into this JS harness (arithmetic/boolean
+    // expressions are identical in Java and JS) and run against the test cases.
+    jsBefore:'function sumEven(arr){let sum=0;for(const num of arr){if(',
+    jsAfter:'){sum+=num;}}return sum;}',
     tests:[
       {args:[[1,2,3,4]], expected:6},
       {args:[[0,1,2,3]], expected:2},      // 0 is not positive
@@ -296,7 +301,7 @@ const ROUNDS = [
       {args:[[]], expected:0},             // empty array
       {args:[[7,7,8]], expected:8}
     ],
-    solution:'function sumEven(arr) {\n  let sum = 0;\n  for (let num of arr) {\n    if (num > 0 && num % 2 === 0) {\n      sum += num;\n    }\n  }\n  return sum;\n}' },
+    answer:'num > 0 && num % 2 == 0' },
 
   { id:'r4', type:'quiz', title:'Guess the Output', duration:45, max:100,
     prompt:'What does this snippet print to the console?',
@@ -402,8 +407,9 @@ const GAME_HELP = {
       pts:'Score = the % of words that match the original (up to 100).'},
   r2:{how:'Move with the arrow keys or on-screen pad through the fog. Grab every gold coin, then reach the red exit to clear the level. Each level you clear gets bigger.',
       pts:'+5 per coin and +20 per level cleared (up to 100).'},
-  r3:{how:'Write sumEven(arr) to add up only the POSITIVE even numbers (ignore negatives and zero). Hit “Run tests” to check — it shows any failing cases.',
-      pts:'Score = the % of test cases your code passes (up to 100).'},
+  r3:{how:'A Java method sums the POSITIVE even numbers, but the if-condition is blanked out. Type the missing Java condition (using num, >, %, ==, &&) and hit “Run tests” — it shows any failing cases.',
+      ex:'The method loops each num and adds it when your condition is true. Correct answer looks like: num > 0 && num % 2 == 0 (positive AND even).',
+      pts:'Score = the % of the 8 test cases your condition passes (up to 100). Watch the tricky one: negative evens must NOT be added.'},
   r4:{how:'Read the code snippet and pick what it prints to the console.',
       pts:'Correct answer scores up to 100 — the sooner you answer, the more you get.'},
   r5:{how:'Unscramble as many of the 10 tech terms as you can in 60 seconds. Type a word and hit ✓ (or Enter) to lock it in. Use ◀ Back / Next ▶ to move between words — jump around freely.',
@@ -1071,6 +1077,7 @@ function mountTeamGame(round){
     case 'quiz':      gameQuiz(box,round); break;
     case 'bughunt':   gameBughunt(box,round); break;
     case 'code':      gameCode(box,round); break;
+    case 'javafill':  gameJavaFill(box,round); break;
     case 'maze':      gameMaze(box,round); break;
     case 'typing':    gameTyping(box,round); break;
     case 'memory':    gameMemory(box,round); break;
@@ -1594,6 +1601,40 @@ function gameCode(box,round){
   activeGame.finalize=()=>{const r=runTests(ta.value,round.functionName,round.tests);
     return {score:Math.round(r.passed/r.total*round.max),display:`${r.passed}/${r.total} tests`+(r.err?(' — '+r.err):'')};};
 }
+// 3) Java Code Sprint — a real Java method with the key condition blanked out.
+// The player types the missing Java condition; it's dropped into a JS harness
+// (arithmetic/boolean expressions are identical in both languages) and tested.
+function gameJavaFill(box,round){
+  const codeHTML=esc(round.code).replace('/* ??? */','<span class="blank">/* type the condition */</span>');
+  box.innerHTML=`<pre class="code">${codeHTML}</pre>
+    <label class="muted" style="font-size:13px;display:block;margin-top:10px">Type the missing <b>if</b> condition (Java):</label>
+    <input id="jf" placeholder="e.g. num &gt; 0 &amp;&amp; num % 2 == 0" autocomplete="off" autocapitalize="off" spellcheck="false"
+      style="font-family:ui-monospace,Consolas,monospace"/>
+    <div class="row" style="margin-top:10px"><button class="ghost" id="run">▶ Run tests</button></div>
+    <div id="tr" class="muted" style="margin-top:8px"></div>`;
+  const inp=$('#jf',box),tr=$('#tr',box);
+  // Anti-cheat: no pasting a solution in.
+  let lastVal=''; const warn=()=>{ tr.innerHTML='<b style="color:var(--red)">⛔ No copy-paste — type it yourself!</b>'; sndBad(); };
+  inp.addEventListener('paste',e=>{ e.preventDefault(); warn(); });
+  inp.addEventListener('drop',e=>{ e.preventDefault(); warn(); });
+  inp.addEventListener('contextmenu',e=>e.preventDefault());
+  inp.addEventListener('input',()=>{ if(inp.value.length-lastVal.length>25){ inp.value=lastVal; warn(); return; } lastVal=inp.value; });
+  const grade=()=>runTests(round.jsBefore+(inp.value.trim()||'false')+round.jsAfter, round.functionName, round.tests);
+  const callStr=(a)=>round.functionName+'('+JSON.stringify(a).slice(1,-1)+')';
+  const show=(r)=>{
+    if(r.err){ tr.innerHTML=`<b style="color:var(--red)">Error: ${esc(r.err)}</b>`; return; }
+    const fails=r.results.filter(x=>!x.pass);
+    let html=`<b style="color:${r.passed===r.total?'var(--green)':'var(--red)'}">${r.passed}/${r.total} tests passing</b>`;
+    if(fails.length){ html+='<div class="testfails">'+fails.slice(0,4).map(f=>
+      `<div>✗ <code>${esc(callStr(f.args))}</code> → got <b>${esc(f.err?('⚠ '+f.err):JSON.stringify(f.got))}</b>, expected <b>${esc(JSON.stringify(f.expected))}</b></div>`).join('')
+      +(fails.length>4?`<div class="muted">…and ${fails.length-4} more</div>`:'')+'</div>'; }
+    tr.innerHTML=html;
+  };
+  $('#run',box).onclick=()=>show(grade());
+  submitBtn(box);
+  activeGame.finalize=()=>{const r=grade();
+    return {score:Math.round(r.passed/r.total*round.max),display:`${r.passed}/${r.total} tests`};};
+}
 // 2) Maze Runner — fog of war + collect all coins + progressive levels.
 function gameMaze(box,round){
   const REVEAL=4;                    // fog radius (grid units)
@@ -1869,6 +1910,7 @@ function buildTeamReveal(round){
       return `<div>${ok?'✓':'✗'} ${esc(p.e)} → <b>${esc((p.accept||[])[0])}</b></div>`; }).join('');
     correctHTML=`Your team decoded <b>${c}/${pz.length}</b>.<div class="muted" style="margin-top:8px;font-size:13px;line-height:1.8">${rows}</div>`; }
   else if(round.type==='code') correctHTML=`Sample correct solution:<pre class="code" style="margin-top:6px">${esc(round.solution||'')}</pre>`;
+  else if(round.type==='javafill') correctHTML=`The condition was <code>${esc(round.answer)}</code>.<pre class="code" style="margin-top:6px">${esc((round.code||'').replace('/* ??? */',round.answer))}</pre>`;
   else if(round.type==='logo'){ correctHTML='Answers: '+logoSet().map(it=>`<b>${esc(it.answer)}</b>`).join(', '); }
   else if(round.type==='logoguess'){ const total=(round.logos||[]).length; const n=t?logoSolvedCount(round,t.id,G.roundIndex):0;
     correctHTML=`Your team got <b>${n}/${total}</b> logos.<div class="muted" style="margin-top:8px;font-size:12px;line-height:1.7">`+
