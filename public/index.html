@@ -1773,7 +1773,7 @@ function gameMemory(box,round){
       setTimeout(()=>countdown(n-1),900); }
     else { st.innerHTML='<b style="font-size:26px;color:var(--green)">Go! 👀</b>'; setTimeout(next,600); }
   }
-  countdown(3);
+  countdown(5);
   activeGame.finalize=()=>({score:clamp(best*12,0,100),display:'reached level '+best});
 }
 function gameReaction(box,round){
