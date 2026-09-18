@@ -1569,6 +1569,14 @@ function gameCode(box,round){
     <div class="row" style="margin-top:10px"><button class="ghost" id="run">▶ Run tests</button></div>
     <div id="tr" class="muted" style="margin-top:8px"></div>`;
   const ta=$('#cd',box),tr=$('#tr',box);
+  // Anti-cheat: no pasting a solution in. Block paste/drop/right-click, and
+  // reject any bulk insert (a jump of many characters) that slips past.
+  let lastVal=ta.value;
+  const warn=()=>{ tr.innerHTML='<b style="color:var(--red)">⛔ No copy-paste — type the code yourself!</b>'; sndBad(); };
+  ta.addEventListener('paste',e=>{ e.preventDefault(); warn(); });
+  ta.addEventListener('drop',e=>{ e.preventDefault(); warn(); });
+  ta.addEventListener('contextmenu',e=>e.preventDefault());
+  ta.addEventListener('input',()=>{ if(ta.value.length-lastVal.length>15){ ta.value=lastVal; warn(); return; } lastVal=ta.value; });
   const callStr=(a)=>round.functionName+'('+JSON.stringify(a).slice(1,-1)+')';
   const show=(r)=>{
     if(r.err){ tr.innerHTML=`<b style="color:var(--red)">Error: ${esc(r.err)}</b>`; return; }
