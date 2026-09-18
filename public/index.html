@@ -106,7 +106,8 @@
   .tile{height:84px;border-radius:12px;background:var(--panel2);border:1px solid var(--line)}
   .tile.on{background:var(--accent);box-shadow:0 0 20px var(--accent)}
   /* Memory Matrix — colourful tiles */
-  .mtiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:320px;margin:14px auto}
+  .mtiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+    width:min(300px,80vw,44vh);margin:12px auto}
   .mtile{aspect-ratio:1;border-radius:18px;cursor:pointer;
     box-shadow:inset 0 -5px 0 rgba(0,0,0,.18);filter:brightness(.72) saturate(.85);
     transition:transform .09s ease,filter .12s ease,box-shadow .14s ease}
@@ -1747,6 +1748,14 @@ function gameMemory(box,round){
     <div class="center" id="mdots" style="margin-top:10px;letter-spacing:5px;color:var(--muted)"></div>`;
   const tilesEl=box.querySelectorAll('.mtile'),st=$('#mstat',box),grid=$('#tiles',box),
         lvl=$('#mlvl',box),pts=$('#mpts',box),dots=$('#mdots',box);
+  // Size the 3x3 grid to the space actually left below the header, so all nine
+  // tiles are always fully in view (never off-screen) on any phone.
+  function fitGrid(){ const top=grid.getBoundingClientRect().top;
+    const avail=window.innerHeight-top-50;                 // leave room for the progress dots
+    const size=Math.round(Math.max(170,Math.min(320,window.innerWidth*0.82,avail)));
+    grid.style.width=size+'px'; }
+  fitGrid(); window.addEventListener('resize',fitGrid);
+  activeGame.cleanup=()=>window.removeEventListener('resize',fitGrid);
   let seq=[],input=[],level=0,accepting=false,best=0;
   const rnd=()=>Math.floor(Math.random()*9);
   function setPts(){ const s=clamp(level*12,0,100),old=+pts.dataset.v||0; pts.dataset.v=s;
