@@ -1811,8 +1811,7 @@ function gameMovieQuiz(box,round){
       <div class="row" style="justify-content:space-between;align-items:center">
         <span class="pill">🎬 Movie ${i+1} / ${qs.length}</span>
         <span class="pill live" id="mqt">${secLeft()}s</span></div>
-      <div class="mqemoji">${esc(q.emoji||'🎬')}</div>
-      <ul class="mqclues">${q.clues.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>
+      <ul class="mqclues" style="margin-top:12px">${q.clues.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>
       <div class="mqopts">${q.options.map((o,k)=>`<button class="opt" data-i="${k}">${esc(o)}</button>`).join('')}</div>`;
     if(answers[i]>=0){ const b=box.querySelector('.opt[data-i="'+answers[i]+'"]'); if(b) b.classList.add('sel'); }
     box.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{ answers[i]=+b.dataset.i;
@@ -2016,7 +2015,7 @@ function buildTeamReveal(round){
       qs.map((q,i)=>`${qs.length>1?('#'+(i+1)+': '):''}<code>${esc(q.code||'')}</code> → <b>${esc(q.options[q.answerIndex])}</b>`).join('<br>')+'</div>'; }
   else if(round.type==='moviequiz'){ const qs=round.questions||[];
     correctHTML='The movies were:<div class="muted" style="margin-top:6px;font-size:12px;line-height:1.8">'+
-      qs.map((q,i)=>`${q.emoji||'🎬'} #${i+1}: <b>${esc(q.options[q.answerIndex])}</b>`).join('<br>')+'</div>'; }
+      qs.map((q,i)=>`#${i+1}: <b>${esc(q.options[q.answerIndex])}</b>`).join('<br>')+'</div>'; }
   else if(round.type==='bughunt') correctHTML=`Bug on <b>line ${round.answerLine}</b>. ${esc(round.explanation)}`;
   else if(round.type==='copy') correctHTML='Scored on how much you copied correctly.';
   else if(round.type==='scramble') correctHTML='Words: '+(round.words||[]).map(w=>`<b>${esc(w.toUpperCase())}</b>`).join(', ');
