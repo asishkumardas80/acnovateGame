@@ -863,7 +863,7 @@ function applyStore(newStore){
 function connectWS(){
   wsClosedByUs=false;
   try{ ws = new WebSocket(wsUrl()); }catch(e){ setTimeout(connectWS,1000); return; }
-  ws.onopen = ()=>{ wsRetry=0; wsHello(); const q=wsOutbox; wsOutbox=[]; q.forEach(s=>{ try{ws.send(s);}catch(e){} }); };
+  ws.onopen = ()=>{ wsRetry=0; syncClock(); wsHello(); const q=wsOutbox; wsOutbox=[]; q.forEach(s=>{ try{ws.send(s);}catch(e){} }); };
   ws.onmessage = (ev)=>{
     let m; try{ m=JSON.parse(ev.data); }catch(e){ return; }
     if(m.t==='store'){ applyStore(m.store); }
