@@ -25,7 +25,7 @@ const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
 // fallback is for local dev). It is never sent to the browser, so it cannot be
 // found by inspecting the page. A correct passcode gets a random session token;
 // host-only actions (reset, start/build, uploads) require that token.
-const HOST_CODE = process.env.HOST_CODE || 'devrush';
+const HOST_CODE = process.env.HOST_CODE || 'Acnoavte789';
 const hostTokens = new Set();                       // valid tokens (in memory)
 function hostAuthed(req) {
   const t = req.get('X-Host-Token') || '';
