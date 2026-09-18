@@ -863,6 +863,7 @@ function buildPlayerLobby(){
       <p class="muted" id="lobbymsg">Teams are picked randomly by the host. Sit tight — the game will start soon.</p>
     </div>
     <div id="myteam"></div>
+    <div id="allteams"></div>
     <div class="card">
       <div class="row" style="justify-content:space-between;align-items:center">
         <h3>In the lobby</h3>
@@ -892,6 +893,18 @@ function refreshLobbyPlayer(){
       if(msg) msg.textContent='Your team is set! Meet your teammates below. 🎉';
     } else { mt.innerHTML='';
       if(msg) msg.textContent='Teams are picked randomly by the host. Sit tight — the game will start soon.'; }
+  }
+  // Show ALL teams to everyone (your own is highlighted).
+  const at=$('#allteams'); const teams=teamsMeta();
+  if(at){
+    at.innerHTML = teams.length ? `<div class="card"><h3>🏆 All teams</h3>`+teams.map(tm=>{
+      const mine=t&&tm.id===t.id; const mates=teamMembers(tm);
+      return `<div class="teamcard" style="${mine?'border:2px solid '+esc(tm.color):''}">
+        <h3><span class="dot" style="background:${esc(tm.color)}"></span>${esc(tm.name)}
+          ${mine?'<span class="pill" style="margin-left:6px">your team</span>':''}
+          <span class="muted" style="font-weight:400;font-size:13px">· ${mates.length} members</span></h3>
+        <div class="members">${mates.map(m=>`<span class="memchip">${avatarHTML(m,'sm')}${esc(m.name)}${m.pid===MY.pid?' (you)':''}</span>`).join('')}</div></div>`;
+    }).join('')+`</div>` : '';
   }
 }
 
