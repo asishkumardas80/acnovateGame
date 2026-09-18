@@ -83,6 +83,10 @@
   .opt{display:block;width:100%;text-align:left;margin:8px 0;background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
   .opt.sel{outline:2px solid var(--accent);background:var(--panel)}
   .opt.correct{background:rgba(55,214,122,.2);border-color:var(--green)}
+  /* Bollywood Hangama */
+  .mqemoji{font-size:44px;text-align:center;margin:8px 0 4px}
+  .mqclues{margin:6px 0 12px;padding-left:20px;font-size:14px;line-height:1.65;color:var(--ink)}
+  .mqclues li{margin:3px 0}
   .opt.wrong{background:rgba(255,84,112,.18);border-color:var(--red)}
   pre.code{background:#0a0f22;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;
     font:13px/1.55 ui-monospace,Consolas,monospace;color:#d6e0ff}
@@ -367,8 +371,80 @@ const ROUNDS = [
   { id:'r8', type:'memory', title:'Memory Matrix', duration:75, max:100,
     prompt:'Watch the tiles light up, then repeat the sequence. Each correct round adds one more tile.' },
 
-  { id:'r9', type:'reaction', title:'Reaction Rush', duration:45, max:100,
-    prompt:'Wait for GREEN, then tap as fast as you can. Best average of 3 attempts wins.' },
+  { id:'r9', type:'moviequiz', title:'Bollywood Hangama', duration:150, perSec:15, max:100,
+    prompt:'Guess the Bollywood movie from the clues! A new movie every 15 seconds — pick your answer before it moves on.',
+    questions:[
+      {emoji:'🧳', options:['Queen','Highway','Piku','English Vinglish'], answerIndex:0, clues:[
+        'A woman leaves home with a plan that doesn’t go as expected.',
+        'A stranger becomes an unexpected companion.',
+        'The journey takes her far away from everything familiar.',
+        'She initially depends on others to handle situations.',
+        'Slowly, she starts making decisions completely on her own.',
+        'By the end, the journey changes how she sees herself.']},
+      {emoji:'🎸', options:['Gully Boy','Rockstar','Aashiqui 2','Ae Dil Hai Mushkil'], answerIndex:1, clues:[
+        'A young man wants his life to mean something extraordinary.',
+        'He discovers that ordinary success isn’t enough for him.',
+        'Love becomes deeply connected to his ambitions.',
+        'His personality changes as his career grows.',
+        'Fame comes with a heavy personal cost.',
+        'Music is at the heart of his identity.']},
+      {emoji:'🎓', options:['Chhichhore','3 Idiots','Dil Chahta Hai','Student of the Year'], answerIndex:1, clues:[
+        'Three friends meet during their college years.',
+        'One of them constantly questions the system.',
+        'Their ideas about success are very different.',
+        'A strict teacher becomes a major influence on their lives.',
+        'Years later, two friends go searching for the third.',
+        'Their search brings back memories of their college days.']},
+      {emoji:'🚂', options:['Jab We Met','Dilwale Dulhania Le Jayenge','Tamasha','Jab Harry Met Sejal'], answerIndex:0, clues:[
+        'Two strangers meet during a journey.',
+        'Neither expects the meeting to change their life.',
+        'One character talks much more than the other.',
+        'Their original destinations become less important.',
+        'Family and relationships eventually become major obstacles.',
+        'A train is involved in the beginning of their story.']},
+      {emoji:'👽', options:['PK','Koi... Mil Gaya','OMG – Oh My God!','Munna Bhai M.B.B.S.'], answerIndex:0, clues:[
+        'Someone arrives in a world he doesn’t understand.',
+        'Simple questions create complicated conversations.',
+        'People give him completely different explanations for the same thing.',
+        'He becomes interested in human beliefs.',
+        'He is searching for something he desperately needs.',
+        'His unusual behavior makes people think he isn’t normal.']},
+      {emoji:'🏏', options:['Dangal','Sultan','Lagaan','Chak De! India'], answerIndex:2, clues:[
+        'A group of people is given an opportunity they cannot afford to lose.',
+        'Their opponent has a huge advantage.',
+        'The challenge involves something they barely understand.',
+        'Failure could affect an entire community.',
+        'An unlikely group comes together for the challenge.',
+        'A sport becomes their only chance to change their fate.']},
+      {emoji:'🎤', options:['Gully Boy','Secret Superstar','Rockstar','Aashiqui 2'], answerIndex:1, clues:[
+        'A teenager has a dream that her family doesn’t support.',
+        'She finds a way to share her talent without revealing her identity.',
+        'Someone close to her secretly helps her.',
+        'The internet becomes an important part of her journey.',
+        'Her talent begins attracting attention.',
+        'Her dream is connected to becoming a singer.']},
+      {emoji:'🏠', options:['Talaash','Badla','Drishyam','Kahaani'], answerIndex:2, clues:[
+        'A family faces a situation that could destroy their peaceful life.',
+        'The protagonist doesn’t use physical strength to solve it.',
+        'Instead, planning becomes extremely important.',
+        'Small details and memories become useful.',
+        'Popular movies unexpectedly become important.',
+        'Protecting the family becomes more important than revealing the truth.']},
+      {emoji:'🌍', options:['Dil Chahta Hai','Yeh Jawaani Hai Deewani','Zindagi Na Milegi Dobara','Wake Up Sid'], answerIndex:2, clues:[
+        'A group of friends decides to take a trip together.',
+        'Each person has a different personality and fear.',
+        'The trip becomes more than just sightseeing.',
+        'They challenge one another to face personal fears.',
+        'Their friendships change during the journey.',
+        'The title suggests that life shouldn’t be postponed.']},
+      {emoji:'🥊', options:['Panga','Mary Kom','Sultan','Dangal'], answerIndex:3, clues:[
+        'A parent sees potential that others don’t notice.',
+        'The children aren’t initially interested in the expected path.',
+        'Training becomes part of their everyday life.',
+        'Society doesn’t expect them to succeed.',
+        'The story involves an unconventional sporting journey.',
+        'The relationship between parent and children is central to the movie.']}
+    ] },
 
   { id:'r10', type:'text', title:'Cipher Crack', duration:120, max:100,
     prompt:'Decode this Caesar cipher (each letter shifted forward by 6):', puzzle:'IXGIQ ZNK YKIXKZ IUJK',
@@ -428,8 +504,9 @@ const GAME_HELP = {
       pts:'Points for every question your team answers correctly (all 15 correct = 100). One shared team score.'},
   r8:{how:'Watch the tiles flash in order, then tap them back in the same order. The sequence grows each round.',
       pts:'+12 points for every level you reach (up to 100).'},
-  r9:{how:'Wait for the box to turn GREEN, then tap as fast as you can. You get 3 tries.',
-      pts:'The faster your average reaction, the higher your score (up to 100).'},
+  r9:{how:'Guess the Bollywood movie from the clues! A new movie appears every 15 seconds and auto-advances — read the clues and tap your answer before time’s up. 10 movies in all.',
+      ex:'Clues like “Rani travels to Paris alone after her wedding is called off” point to the movie – tap the right title from the four options.',
+      pts:'10 points per correct movie (all 10 = 100).'},
   r10:{how:'A Caesar cipher shifts every letter forward along the alphabet by a fixed amount. Shift each letter back (the hint tells you by how much) to reveal the message, then type it.',
       ex:'Example with a shift of 3: K→H, H→E, O→L, O→L, R→O — so “KHOOR” decodes to “HELLO”. (This round uses a different shift — check the hint.)',
       pts:'Correct answer scores up to 100 — the sooner you decode it, the more you get.'},
@@ -1076,6 +1153,7 @@ function mountTeamGame(round){
     case 'typing':    gameTyping(box,round); break;
     case 'memory':    gameMemory(box,round); break;
     case 'reaction':  gameReaction(box,round); break;
+    case 'moviequiz': gameMovieQuiz(box,round); break;
     case 'logo':      gameLogo(box,round); break;
     case 'logoguess': gameLogoGuess(box,round); break;
     default: box.innerHTML='<p class="muted">Unknown game type.</p>';
@@ -1719,6 +1797,35 @@ function gameMaze(box,round){
   activeGame.finalize=()=>({score:clamp(Math.min(100,pts),0,100),
     display:`${cleared} level${cleared===1?'':'s'} cleared, ${coinsGot} coins`});
 }
+// 9) Bollywood Hangama — guess the movie from clues; a new movie every N seconds,
+// synced to the shared round clock. Individual game (team score = average).
+function gameMovieQuiz(box,round){
+  const qs=round.questions||[]; const PER=round.perSec||15;
+  const answers=new Array(qs.length).fill(-1);
+  let shown=-1;
+  const curIdx=()=> (!G.tStart)?0:clamp(Math.floor((serverNow()-G.tStart)/(PER*1000)),0,qs.length-1);
+  const secLeft=()=>{ if(!G.tStart) return PER; const e=(serverNow()-G.tStart)/1000; return clamp(PER-Math.floor(e%PER),0,PER); };
+  function draw(){
+    const i=curIdx(); shown=i; const q=qs[i];
+    box.innerHTML=`
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <span class="pill">🎬 Movie ${i+1} / ${qs.length}</span>
+        <span class="pill live" id="mqt">${secLeft()}s</span></div>
+      <div class="mqemoji">${esc(q.emoji||'🎬')}</div>
+      <ul class="mqclues">${q.clues.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>
+      <div class="mqopts">${q.options.map((o,k)=>`<button class="opt" data-i="${k}">${esc(o)}</button>`).join('')}</div>`;
+    if(answers[i]>=0){ const b=box.querySelector('.opt[data-i="'+answers[i]+'"]'); if(b) b.classList.add('sel'); }
+    box.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{ answers[i]=+b.dataset.i;
+      box.querySelectorAll('.opt').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); });
+  }
+  const iv=setInterval(()=>{ const i=curIdx();
+    if(i!==shown) draw(); else { const t=$('#mqt',box); if(t) t.textContent=secLeft()+'s'; }
+  },250);
+  draw();
+  activeGame.cleanup=()=>clearInterval(iv);
+  activeGame.finalize=()=>{ let c=0; qs.forEach((q,k)=>{ if(answers[k]===q.answerIndex) c++; });
+    return {score:Math.round(c/qs.length*(round.max||100)), display:c+'/'+qs.length+' correct'}; };
+}
 function gameTyping(box,round){
   box.innerHTML=`<div class="card" style="background:var(--bg2)">${esc(round.text)}</div>
     <textarea id="tp" placeholder="Start typing..."></textarea>
@@ -1907,6 +2014,9 @@ function buildTeamReveal(round){
   else if(round.type==='quiz'){ const qs=round.questions||[{code:round.code,options:round.options,answerIndex:round.answerIndex}];
     correctHTML='Answers:<div class="muted" style="margin-top:6px;font-size:12px;line-height:1.7">'+
       qs.map((q,i)=>`${qs.length>1?('#'+(i+1)+': '):''}<code>${esc(q.code||'')}</code> → <b>${esc(q.options[q.answerIndex])}</b>`).join('<br>')+'</div>'; }
+  else if(round.type==='moviequiz'){ const qs=round.questions||[];
+    correctHTML='The movies were:<div class="muted" style="margin-top:6px;font-size:12px;line-height:1.8">'+
+      qs.map((q,i)=>`${q.emoji||'🎬'} #${i+1}: <b>${esc(q.options[q.answerIndex])}</b>`).join('<br>')+'</div>'; }
   else if(round.type==='bughunt') correctHTML=`Bug on <b>line ${round.answerLine}</b>. ${esc(round.explanation)}`;
   else if(round.type==='copy') correctHTML='Scored on how much you copied correctly.';
   else if(round.type==='scramble') correctHTML='Words: '+(round.words||[]).map(w=>`<b>${esc(w.toUpperCase())}</b>`).join(', ');
