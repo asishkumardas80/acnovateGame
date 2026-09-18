@@ -1911,11 +1911,11 @@ function gameTraffic(box,round){
     <div class="muted center" id="tfmsg" style="margin-top:6px;font-size:12px">Use ← → / A D or the buttons to dodge the traffic!</div>`;
   const cv=$('#tfcv',box), ctx=cv.getContext('2d');
   const W=cv.width=Math.min(320, box.clientWidth||320), H=cv.height=400;
-  const LANES=3, laneW=W/LANES, carW=laneW*0.62, carH=54, playerY=H-carH-14;
-  const laneX=l=>l*laneW+(laneW-carW)/2;
-  const COLORS=['#ff5470','#ffd257','#37d67a','#7c5bff','#2fd4c9','#ff8f3b'];
+  const LANES=3, laneW=W/LANES, carW=laneW*0.62, carH=54, playerY=H-carH-14, READY=5;
+  const laneX=l=>l*laneW+(laneW-carW)/2, ctr=l=>l*laneW+laneW/2;
+  const CARS=['🚕','🚙','🚌','🚚','🚓','🏎️','🚐'];
   let pl=1, px=laneX(1), cars=[], spawnT=0, spawnGap=1.1, speed=150, dist=0, survived=0,
-      lives=3, inv=0, over=false, last=0, raf=0, roadY=0;
+      lives=3, inv=0, over=false, base=null, last=0, raf=0, roadY=0;
   const move=d=>{ if(!over) pl=clamp(pl+d,0,LANES-1); };
   const keyH=e=>{ const k=(e.key||'').toLowerCase();
     if(k==='arrowleft'||k==='a'){ move(-1); e.preventDefault(); }
@@ -1923,38 +1923,48 @@ function gameTraffic(box,round){
   window.addEventListener('keydown',keyH);
   $('#tfL',box).onclick=()=>move(-1); $('#tfR',box).onclick=()=>move(1);
   const hearts=()=>{ const el=$('#tflives',box); if(el) el.textContent= lives>0 ? '❤️ '.repeat(lives).trim() : '💥'; };
-  function rr(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
-    ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
-  function car(x,y,c){ ctx.fillStyle=c; rr(x,y,carW,carH,9); ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,.55)'; ctx.fillRect(x+7,y+9,carW-14,11); ctx.fillRect(x+7,y+carH-20,carW-14,11); }
+  function emoji(centerX,y,e,dim){ if(dim) return; ctx.save();
+    ctx.font='38px system-ui,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji"';
+    ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(e, centerX, y+carH/2); ctx.restore(); }
+  function drawRoad(){ ctx.fillStyle='#232a44'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='rgba(150,160,200,.35)'; ctx.lineWidth=3; ctx.setLineDash([16,18]); ctx.lineDashOffset=-roadY;
+    for(let i=1;i<LANES;i++){ ctx.beginPath(); ctx.moveTo(i*laneW,0); ctx.lineTo(i*laneW,H); ctx.stroke(); }
+    ctx.setLineDash([]); }
   function loop(ts){
     if(over||(activeGame&&activeGame.submitted)){ cancelAnimationFrame(raf); return; }
-    if(!last) last=ts; const dt=Math.min(.05,(ts-last)/1000); last=ts;
-    survived+=dt; speed=Math.min(520, speed+dt*9); dist+=speed*dt*0.1; spawnT+=dt; roadY=(roadY+speed*dt)%40;
-    if(spawnT>=spawnGap){ spawnT=0; spawnGap=Math.max(0.55, spawnGap-0.02);
-      cars.push({lane:Math.floor(Math.random()*LANES), y:-carH, c:COLORS[Math.floor(Math.random()*COLORS.length)]}); }
+    if(base==null) base=ts; if(!last) last=ts;
+    const dt=Math.min(.05,(ts-last)/1000); last=ts; const since=(ts-base)/1000;
     px+=(laneX(pl)-px)*Math.min(1,dt*16);
+    if(since<READY){                                    // 5-second get-ready countdown
+      drawRoad(); emoji(px+carW/2, playerY, '🚗');
+      const n=Math.ceil(READY-since);
+      ctx.fillStyle='#ffd257'; ctx.font='bold 88px system-ui,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(String(n), W/2, H/2);
+      const m=$('#tfmsg',box); if(m) m.textContent='Get ready… '+n;
+      raf=requestAnimationFrame(loop); return;
+    }
+    const m=$('#tfmsg',box); if(m && m.textContent.indexOf('Get ready')===0) m.textContent='Dodge! ← → / A D or the buttons';
+    speed=Math.min(520, speed+dt*9); dist+=speed*dt*0.1; survived+=dt; spawnT+=dt; roadY=(roadY+speed*dt)%40;
+    if(spawnT>=spawnGap){ spawnT=0; spawnGap=Math.max(0.55, spawnGap-0.02);
+      cars.push({lane:Math.floor(Math.random()*LANES), y:-carH, e:CARS[Math.floor(Math.random()*CARS.length)]}); }
     for(const c of cars) c.y+=speed*dt;
     cars=cars.filter(c=>c.y<H+carH);
     if(inv>0) inv-=dt;
-    else for(const c of cars){ if(c.y+carH>playerY && c.y<playerY+carH && Math.abs(laneX(c.lane)-px)<carW*0.75){
+    else for(const c of cars){ if(c.y+carH>playerY && c.y<playerY+carH && Math.abs(laneX(c.lane)-px)<carW*0.72){
       lives--; inv=1.25; hearts(); if(lives<=0){ gameOver(); return; } break; } }
-    // draw road
-    ctx.fillStyle='#232a44'; ctx.fillRect(0,0,W,H);
-    ctx.strokeStyle='rgba(150,160,200,.35)'; ctx.lineWidth=3; ctx.setLineDash([16,18]); ctx.lineDashOffset=-roadY;
-    for(let i=1;i<LANES;i++){ ctx.beginPath(); ctx.moveTo(i*laneW,0); ctx.lineTo(i*laneW,H); ctx.stroke(); }
-    ctx.setLineDash([]);
-    for(const c of cars) car(laneX(c.lane),c.y,c.c);
-    if(!(inv>0 && Math.floor(ts/90)%2)) car(px,playerY,'#4f7cf0');
+    drawRoad();
+    for(const c of cars) emoji(ctr(c.lane), c.y, c.e);
+    emoji(px+carW/2, playerY, '🚗', inv>0 && Math.floor(ts/90)%2);
     const d=$('#tfdist',box); if(d) d.textContent=Math.floor(dist)+' m';
     raf=requestAnimationFrame(loop);
   }
   function gameOver(){ over=true; cancelAnimationFrame(raf);
     const m=$('#tfmsg',box); if(m) m.innerHTML='💥 <b>Game Over</b> — you dodged <b>'+Math.floor(dist)+' m</b>! Submitting…';
     setTimeout(()=>submitActiveGame(false),700); }
+  const m0=$('#tfmsg',box); if(m0) m0.textContent='Get ready…';
   raf=requestAnimationFrame(loop);
   activeGame.cleanup=()=>{ over=true; cancelAnimationFrame(raf); window.removeEventListener('keydown',keyH); };
-  activeGame.finalize=()=>({ score:clamp(Math.round(survived/round.duration*100),0,100), display:Math.floor(dist)+' m survived' });
+  activeGame.finalize=()=>({ score:clamp(Math.round(survived/Math.max(1,round.duration-READY)*100),0,100), display:Math.floor(dist)+' m survived' });
 }
 function gameTyping(box,round){
   box.innerHTML=`<div class="card" style="background:var(--bg2)">${esc(round.text)}</div>
