@@ -98,6 +98,9 @@
   .patopt .patsvg{width:54px;height:54px}
   .patrevrow{display:flex;align-items:center;gap:6px;margin:2px 0}
   .patrevrow .patsvg{width:30px;height:30px}
+  /* Traffic Dodge */
+  .tfcanvas{display:block;margin:10px auto;border-radius:14px;max-width:100%;
+    box-shadow:0 6px 20px rgba(20,40,90,.25);touch-action:none}
   .opt.wrong{background:rgba(255,84,112,.18);border-color:var(--red)}
   pre.code{background:#0a0f22;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;
     font:13px/1.55 ui-monospace,Consolas,monospace;color:#d6e0ff}
@@ -492,18 +495,8 @@ const ROUNDS = [
         opts:[{t:'sq',dir:'v',n:4,sh:1},{t:'sq',dir:'v',n:4,sh:0},{t:'sq',dir:'v',n:4,sh:2},{t:'sq',dir:'v',n:4,sh:3}], answerIndex:1}
     ] },
 
-  { id:'r12', type:'bughunt', title:'Bug Hunt', duration:90, max:100,
-    prompt:'This factorial function has ONE bug. Which line number is wrong?',
-    lines:[
-      'function factorial(n) {',
-      '  let result = 1;',
-      '  for (let i = 1; i < n; i++) {',
-      '    result *= i;',
-      '  }',
-      '  return result;',
-      '}'
-    ], answerLine:3,
-    explanation:'Line 3: the loop should be i <= n. With i < n it stops one short and misses the final factor.' },
+  { id:'r12', type:'traffic', title:'Traffic Dodge', duration:75, max:100,
+    prompt:'Dodge the incoming traffic! Move with ← → (or A / D, or the on-screen buttons). You have 3 lives — a crash costs one, but you keep going. The traffic speeds up the longer you survive. Score = how far you get.' },
 
   { id:'r13', type:'logoguess', title:'Logo Guess', duration:420, max:100,
     prompt:'As a TEAM, guess each logo! One logo every 30 seconds — anyone can spell the brand with the letter tiles to lock it in.',
@@ -555,8 +548,9 @@ const GAME_HELP = {
   r11:{how:'A TEAM game! 10 emoji puzzles — each pair of emojis hints at a famous brand or app. Discuss in team chat and anyone can lock in a guess for any puzzle.',
       ex:'🍏 (apple) + 📱 (phone) → the brand “APPLE”. Type your guess under each puzzle and hit Guess.',
       pts:'10 points per correct puzzle your team cracks (all 10 = 100). One shared team score.'},
-  r12:{how:'Read the code, spot the ONE line with the bug, and tap that line number.',
-      pts:'Correct answer scores up to 100 — the sooner you answer, the more you get.'},
+  r12:{how:'A reaction arcade game! Your car is at the bottom — move left/right with ← → (or A/D, or the on-screen ◀ ▶ buttons) to dodge oncoming cars. You have 3 lives; each crash costs one but you keep going. The traffic gets faster the longer you last.',
+      ex:'Slide into an empty lane before a car reaches you. Survive as long as possible — the further you travel, the higher your score.',
+      pts:'Score = distance survived (0–100). Lasting the whole round = full marks; a crash-out ends it early.'},
   r13:{how:'A TEAM game! A logo shows for 30 seconds then auto-advances. Anyone on the team taps the letter tiles to spell the brand and lock it in — talk it over in team chat. Each player gets 2 hints total.',
       ex:'The Figma logo appears — someone taps F-I-G-M-A from the tiles to lock it for the team before the 30 seconds run out.',
       pts:'Points for each logo your team gets right (all of them = 100). One shared team score. Max 2 hints per player.'}
@@ -1189,6 +1183,7 @@ function mountTeamGame(round){
     case 'emoji':     gameEmoji(box,round); break;
     case 'quiz':      gameQuiz(box,round); break;
     case 'bughunt':   gameBughunt(box,round); break;
+    case 'traffic':   gameTraffic(box,round); break;
     case 'code':      gameCode(box,round); break;
     case 'javafill':  gameJavaFill(box,round); break;
     case 'maze':      gameMaze(box,round); break;
@@ -1903,6 +1898,64 @@ function gameMovieQuiz(box,round){
   activeGame.finalize=()=>{ let c=0; qs.forEach((q,k)=>{ if(answers[k]===q.answerIndex) c++; });
     return {score:Math.round(c/qs.length*(round.max||100)), display:c+'/'+qs.length+' correct'}; };
 }
+// 11) Traffic Dodge — a real-time arcade dodger. Individual; score = distance.
+function gameTraffic(box,round){
+  box.innerHTML=`
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <span class="pill" id="tflives">❤️ ❤️ ❤️</span>
+      <span class="ptsbadge" id="tfdist">0 m</span></div>
+    <canvas id="tfcv" class="tfcanvas"></canvas>
+    <div class="row" style="justify-content:center;gap:30px;margin-top:10px">
+      <button class="ok" id="tfL" style="width:auto;font-size:26px;padding:10px 34px">◀</button>
+      <button class="ok" id="tfR" style="width:auto;font-size:26px;padding:10px 34px">▶</button></div>
+    <div class="muted center" id="tfmsg" style="margin-top:6px;font-size:12px">Use ← → / A D or the buttons to dodge the traffic!</div>`;
+  const cv=$('#tfcv',box), ctx=cv.getContext('2d');
+  const W=cv.width=Math.min(320, box.clientWidth||320), H=cv.height=400;
+  const LANES=3, laneW=W/LANES, carW=laneW*0.62, carH=54, playerY=H-carH-14;
+  const laneX=l=>l*laneW+(laneW-carW)/2;
+  const COLORS=['#ff5470','#ffd257','#37d67a','#7c5bff','#2fd4c9','#ff8f3b'];
+  let pl=1, px=laneX(1), cars=[], spawnT=0, spawnGap=1.1, speed=150, dist=0, survived=0,
+      lives=3, inv=0, over=false, last=0, raf=0, roadY=0;
+  const move=d=>{ if(!over) pl=clamp(pl+d,0,LANES-1); };
+  const keyH=e=>{ const k=(e.key||'').toLowerCase();
+    if(k==='arrowleft'||k==='a'){ move(-1); e.preventDefault(); }
+    else if(k==='arrowright'||k==='d'){ move(1); e.preventDefault(); } };
+  window.addEventListener('keydown',keyH);
+  $('#tfL',box).onclick=()=>move(-1); $('#tfR',box).onclick=()=>move(1);
+  const hearts=()=>{ const el=$('#tflives',box); if(el) el.textContent= lives>0 ? '❤️ '.repeat(lives).trim() : '💥'; };
+  function rr(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+  function car(x,y,c){ ctx.fillStyle=c; rr(x,y,carW,carH,9); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.55)'; ctx.fillRect(x+7,y+9,carW-14,11); ctx.fillRect(x+7,y+carH-20,carW-14,11); }
+  function loop(ts){
+    if(over||(activeGame&&activeGame.submitted)){ cancelAnimationFrame(raf); return; }
+    if(!last) last=ts; const dt=Math.min(.05,(ts-last)/1000); last=ts;
+    survived+=dt; speed=Math.min(520, speed+dt*9); dist+=speed*dt*0.1; spawnT+=dt; roadY=(roadY+speed*dt)%40;
+    if(spawnT>=spawnGap){ spawnT=0; spawnGap=Math.max(0.55, spawnGap-0.02);
+      cars.push({lane:Math.floor(Math.random()*LANES), y:-carH, c:COLORS[Math.floor(Math.random()*COLORS.length)]}); }
+    px+=(laneX(pl)-px)*Math.min(1,dt*16);
+    for(const c of cars) c.y+=speed*dt;
+    cars=cars.filter(c=>c.y<H+carH);
+    if(inv>0) inv-=dt;
+    else for(const c of cars){ if(c.y+carH>playerY && c.y<playerY+carH && Math.abs(laneX(c.lane)-px)<carW*0.75){
+      lives--; inv=1.25; hearts(); if(lives<=0){ gameOver(); return; } break; } }
+    // draw road
+    ctx.fillStyle='#232a44'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='rgba(150,160,200,.35)'; ctx.lineWidth=3; ctx.setLineDash([16,18]); ctx.lineDashOffset=-roadY;
+    for(let i=1;i<LANES;i++){ ctx.beginPath(); ctx.moveTo(i*laneW,0); ctx.lineTo(i*laneW,H); ctx.stroke(); }
+    ctx.setLineDash([]);
+    for(const c of cars) car(laneX(c.lane),c.y,c.c);
+    if(!(inv>0 && Math.floor(ts/90)%2)) car(px,playerY,'#4f7cf0');
+    const d=$('#tfdist',box); if(d) d.textContent=Math.floor(dist)+' m';
+    raf=requestAnimationFrame(loop);
+  }
+  function gameOver(){ over=true; cancelAnimationFrame(raf);
+    const m=$('#tfmsg',box); if(m) m.innerHTML='💥 <b>Game Over</b> — you dodged <b>'+Math.floor(dist)+' m</b>! Submitting…';
+    setTimeout(()=>submitActiveGame(false),700); }
+  raf=requestAnimationFrame(loop);
+  activeGame.cleanup=()=>{ over=true; cancelAnimationFrame(raf); window.removeEventListener('keydown',keyH); };
+  activeGame.finalize=()=>({ score:clamp(Math.round(survived/round.duration*100),0,100), display:Math.floor(dist)+' m survived' });
+}
 function gameTyping(box,round){
   box.innerHTML=`<div class="card" style="background:var(--bg2)">${esc(round.text)}</div>
     <textarea id="tp" placeholder="Start typing..."></textarea>
@@ -2095,6 +2148,7 @@ function buildTeamReveal(round){
     correctHTML='The movies were:<div class="muted" style="margin-top:6px;font-size:12px;line-height:1.8">'+
       qs.map((q,i)=>`#${i+1}: <b>${esc(q.options[q.answerIndex])}</b>`).join('<br>')+'</div>'; }
   else if(round.type==='bughunt') correctHTML=`Bug on <b>line ${round.answerLine}</b>. ${esc(round.explanation)}`;
+  else if(round.type==='traffic') correctHTML='🏁 Survival game — your score is the distance you dodged. Nice driving!';
   else if(round.type==='copy') correctHTML='Scored on how much you copied correctly.';
   else if(round.type==='scramble') correctHTML='Words: '+(round.words||[]).map(w=>`<b>${esc(w.toUpperCase())}</b>`).join(', ');
   else if(round.type==='brainstorm'){ const n=t?bsAccepted(round,t.id,G.roundIndex):0;
