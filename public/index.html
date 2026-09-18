@@ -87,6 +87,17 @@
   .mqemoji{font-size:44px;text-align:center;margin:8px 0 4px}
   .mqclues{margin:6px 0 12px;padding-left:20px;font-size:14px;line-height:1.65;color:var(--ink)}
   .mqclues li{margin:3px 0}
+  /* What Comes Next? — visual pattern shapes */
+  .patsvg{width:46px;height:46px;display:inline-block;vertical-align:middle}
+  .patrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:16px 0;padding:12px;
+    background:var(--panel2);border-radius:12px;justify-content:center}
+  .patrow .patsvg{width:46px;height:46px}
+  .patq{font-size:32px;font-weight:800;color:var(--muted)}
+  .patopts{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:10px}
+  .patopt{display:flex;align-items:center;justify-content:center;width:auto;margin:0;padding:12px;min-height:70px}
+  .patopt .patsvg{width:54px;height:54px}
+  .patrevrow{display:flex;align-items:center;gap:6px;margin:2px 0}
+  .patrevrow .patsvg{width:30px;height:30px}
   .opt.wrong{background:rgba(255,84,112,.18);border-color:var(--red)}
   pre.code{background:#0a0f22;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;
     font:13px/1.55 ui-monospace,Consolas,monospace;color:#d6e0ff}
@@ -449,16 +460,36 @@ const ROUNDS = [
   { id:'r10', type:'relay', title:'What Comes Next?', duration:200, max:100,
     prompt:'Spot the pattern and pick what comes next! TEAM game — discuss in chat, anyone locks the team’s answer. A new puzzle every 20 seconds.',
     questions:[
-      {cat:'🔄 What comes next?', q:'◐ ◓ ◑ ◒ ?', options:['◑','◐','◒','◓'], answerIndex:1},
-      {cat:'🔺 What comes next?', q:'▲ ▶ ▼ ◀ ▲ ▶ ?', options:['▲','◀','▼','▶'], answerIndex:2},
-      {cat:'🔺 What comes next?', q:'△ ▲ ▽ ▼ △ ▲ ?', options:['▽','▼','△','▲'], answerIndex:0},
-      {cat:'🌓 What comes next?', q:'○ ◔ ◑ ◕ ● ◕ ◑ ?', options:['○','◑','◔','●'], answerIndex:2},
-      {cat:'🔢 What comes next?', q:'2, 3, 5, 8, 13, ?', options:['18','21','20','26'], answerIndex:1},
-      {cat:'🔢 What comes next?', q:'1, 2, 6, 24, ?', options:['120','96','72','48'], answerIndex:0},
-      {cat:'🔢 What comes next?', q:'1, 3, 6, 10, 15, ?', options:['20','21','18','25'], answerIndex:1},
-      {cat:'🔢 What comes next?', q:'1, 8, 27, 64, ?', options:['100','216','125','81'], answerIndex:2},
-      {cat:'🔤 What comes next?', q:'A, B, D, G, K, ?', options:['N','P','O','Q'], answerIndex:1},
-      {cat:'🔢 What comes next?', q:'2, 6, 12, 20, ?', options:['28','24','30','36'], answerIndex:2}
+      // 1) alternating up / down triangle -> next is down
+      {cat:'🧩 What comes next?', seq:[{t:'tri',dir:'u'},{t:'tri',dir:'d'},{t:'tri',dir:'u'},{t:'tri',dir:'d'},{t:'tri',dir:'u'}],
+        opts:[{t:'tri',dir:'u'},{t:'tri',dir:'d'},{t:'tri',dir:'r'},{t:'tri',dir:'l'}], answerIndex:1},
+      // 2) triangle rotating u,r,d,l (period 4) -> next is down
+      {cat:'🧩 What comes next?', seq:[{t:'tri',dir:'u'},{t:'tri',dir:'r'},{t:'tri',dir:'d'},{t:'tri',dir:'l'},{t:'tri',dir:'u'},{t:'tri',dir:'r'}],
+        opts:[{t:'tri',dir:'u'},{t:'tri',dir:'r'},{t:'tri',dir:'d'},{t:'tri',dir:'l'}], answerIndex:2},
+      // 3) pie: shaded slice rotates 0,1,2,3 -> 4
+      {cat:'🧩 What comes next?', seq:[{t:'ps',n:8,at:0},{t:'ps',n:8,at:1},{t:'ps',n:8,at:2},{t:'ps',n:8,at:3}],
+        opts:[{t:'ps',n:8,at:4},{t:'ps',n:8,at:2},{t:'ps',n:8,at:6},{t:'ps',n:8,at:0}], answerIndex:0},
+      // 4) pie fill 1,2,3,4 -> 5
+      {cat:'🧩 What comes next?', seq:[{t:'pf',n:8,k:1},{t:'pf',n:8,k:2},{t:'pf',n:8,k:3},{t:'pf',n:8,k:4}],
+        opts:[{t:'pf',n:8,k:4},{t:'pf',n:8,k:6},{t:'pf',n:8,k:3},{t:'pf',n:8,k:5}], answerIndex:3},
+      // 5) square shaded column 0,1,2 (period 3) -> back to 0
+      {cat:'🧩 What comes next?', seq:[{t:'sq',dir:'v',n:3,sh:0},{t:'sq',dir:'v',n:3,sh:1},{t:'sq',dir:'v',n:3,sh:2}],
+        opts:[{t:'sq',dir:'v',n:3,sh:1},{t:'sq',dir:'v',n:3,sh:2},{t:'sq',dir:'v',n:3,sh:0},{t:'sq',dir:'h',n:3,sh:0}], answerIndex:2},
+      // 6) square divisions alternate vertical / horizontal -> next vertical
+      {cat:'🧩 What comes next?', seq:[{t:'sq',dir:'v',n:2,sh:0},{t:'sq',dir:'h',n:2,sh:0},{t:'sq',dir:'v',n:2,sh:0},{t:'sq',dir:'h',n:2,sh:0}],
+        opts:[{t:'sq',dir:'h',n:2,sh:0},{t:'sq',dir:'v',n:2,sh:0},{t:'sq',dir:'v',n:3,sh:0},{t:'sq',dir:'h',n:2,sh:1}], answerIndex:1},
+      // 7) triangle outline / filled alternate -> next outline
+      {cat:'🧩 What comes next?', seq:[{t:'tri',dir:'u'},{t:'tri',dir:'u',f:1},{t:'tri',dir:'u'},{t:'tri',dir:'u',f:1}],
+        opts:[{t:'tri',dir:'u'},{t:'tri',dir:'u',f:1},{t:'tri',dir:'d'},{t:'tri',dir:'d',f:1}], answerIndex:0},
+      // 8) pie (6 slices) shaded slice moves back 5,4,3,2 -> 1
+      {cat:'🧩 What comes next?', seq:[{t:'ps',n:6,at:5},{t:'ps',n:6,at:4},{t:'ps',n:6,at:3},{t:'ps',n:6,at:2}],
+        opts:[{t:'ps',n:6,at:2},{t:'ps',n:6,at:0},{t:'ps',n:6,at:3},{t:'ps',n:6,at:1}], answerIndex:3},
+      // 9) pie fill by twos 2,4,6 -> 8
+      {cat:'🧩 What comes next?', seq:[{t:'pf',n:8,k:2},{t:'pf',n:8,k:4},{t:'pf',n:8,k:6}],
+        opts:[{t:'pf',n:8,k:7},{t:'pf',n:8,k:8},{t:'pf',n:8,k:6},{t:'pf',n:8,k:5}], answerIndex:1},
+      // 10) square with more divisions each step 2,3,4 -> 5
+      {cat:'🧩 What comes next?', seq:[{t:'sq',dir:'v',n:2},{t:'sq',dir:'v',n:3},{t:'sq',dir:'v',n:4}],
+        opts:[{t:'sq',dir:'v',n:4},{t:'sq',dir:'v',n:6},{t:'sq',dir:'v',n:5},{t:'sq',dir:'h',n:5}], answerIndex:2}
     ] },
 
   { id:'r12', type:'bughunt', title:'Bug Hunt', duration:90, max:100,
@@ -1522,6 +1553,40 @@ function gameRelay(box,round){
   box.innerHTML='<div id="relaybox"></div>';
   renderRelay();
 }
+// ---- Visual pattern shapes (for "What Comes Next?") -------------------------
+// Draw a shape from a small spec, in SVG, using var(--ink) so it adapts to theme.
+//  {t:'tri', dir:'u|r|d|l', f:1?}          triangle (outline or filled)
+//  {t:'ps',  n, at}                        pie of n slices, one slice at `at` shaded
+//  {t:'pf',  n, k}                         pie of n slices, first k shaded
+//  {t:'sq',  dir:'v|h', n, sh?}            square split into n bars, bar `sh` shaded
+function patShape(s){
+  const st='stroke="var(--ink)" stroke-width="2" fill="none"', th='stroke="var(--ink)" stroke-width="1.4"';
+  let g='';
+  if(s.t==='tri'){
+    const P={u:'20,5 35,35 5,35',r:'5,5 35,20 5,35',d:'5,5 35,5 20,35',l:'35,5 5,20 35,35'}[s.dir]||'';
+    g=`<polygon points="${P}" ${s.f?'fill="var(--ink)"':st}/>`;
+  } else if(s.t==='ps'||s.t==='pf'){
+    const n=s.n, R=16, ang=k=>(k*2*Math.PI/n)-Math.PI/2,
+      pt=a=>[(20+R*Math.cos(a)).toFixed(1),(20+R*Math.sin(a)).toFixed(1)],
+      wedge=k=>{const [x0,y0]=pt(ang(k)),[x1,y1]=pt(ang(k+1));
+        return `<path d="M20,20 L${x0},${y0} A16,16 0 0,1 ${x1},${y1} Z" fill="var(--ink)"/>`;};
+    if(s.t==='ps'&&s.at!=null) g+=wedge(s.at);
+    if(s.t==='pf') for(let k=0;k<(s.k||0);k++) g+=wedge(k);
+    for(let k=0;k<n;k++){const [x,y]=pt(ang(k)); g+=`<line x1="20" y1="20" x2="${x}" y2="${y}" ${th}/>`;}
+    g+=`<circle cx="20" cy="20" r="16" ${st}/>`;
+  } else if(s.t==='sq'){
+    const n=s.n||2;
+    if(s.sh!=null&&s.sh>=0){const w=28/n,c=6+w*s.sh;
+      g+= s.dir==='v' ? `<rect x="${c.toFixed(1)}" y="6" width="${w.toFixed(1)}" height="28" fill="var(--ink)"/>`
+                       : `<rect x="6" y="${c.toFixed(1)}" width="28" height="${w.toFixed(1)}" fill="var(--ink)"/>`;}
+    for(let k=1;k<n;k++){const p=(6+28*k/n).toFixed(1);
+      g+= s.dir==='v' ? `<line x1="${p}" y1="6" x2="${p}" y2="34" ${th}/>` : `<line x1="6" y1="${p}" x2="34" y2="${p}" ${th}/>`;}
+    g+=`<rect x="6" y="6" width="28" height="28" ${st}/>`;
+  }
+  return '<svg viewBox="0 0 40 40" class="patsvg">'+g+'</svg>';
+}
+function patRowHTML(seq){ return '<div class="patrow">'+seq.map(patShape).join('')+'<span class="patq">?</span></div>'; }
+
 function renderRelay(){
   const box=document.getElementById('relaybox'); if(!box) return;
   const r=G.roundIndex, round=ROUNDS[r], t=teamOf(MY.pid); if(!t) return;
@@ -1529,17 +1594,18 @@ function renderRelay(){
   const q=qs[cur], ans=STORE['rq:'+r+':'+t.id+':'+cur];
   let answered=0; for(let i=0;i<total;i++) if(STORE['rq:'+r+':'+t.id+':'+i]) answered++;
   box.dataset.cur=cur; box.dataset.sig=relaySig(t,r);
-  const opts=q.options.map((o,i)=>{ let cls='opt reopt';
+  const visual=!!q.seq;                          // visual pattern question?
+  const optList=visual?q.opts:q.options;
+  const opts=optList.map((o,i)=>{ let cls='opt reopt'+(visual?' patopt':'');
     if(ans){ if(i===q.answerIndex) cls+=' correct'; else if(i===ans.choice) cls+=' wrong'; }
-    return `<button class="${cls}" data-i="${i}"${ans?' disabled':''}>${esc(o)}</button>`; }).join('');
+    return `<button class="${cls}" data-i="${i}"${ans?' disabled':''}>${visual?patShape(o):esc(o)}</button>`; }).join('');
   box.innerHTML=`
     <div class="row" style="justify-content:space-between">
       <span class="muted">Question ${cur+1} / ${total} · ${answered} answered</span>
       <span class="ptsbadge">⏱ <span id="rqtime">${relaySecLeft()}</span>s</span></div>
     ${q.cat?`<div class="pill" style="margin-top:8px">${esc(q.cat)}</div>`:''}
-    <h3 style="margin:10px 0 ${q.code?'8':'12'}px">${esc(q.q)}</h3>
-    ${q.code?`<pre class="code">${esc(q.code)}</pre>`:''}
-    ${opts}
+    ${visual ? patRowHTML(q.seq) : `<h3 style="margin:10px 0 ${q.code?'8':'12'}px">${esc(q.q)}</h3>${q.code?`<pre class="code">${esc(q.code)}</pre>`:''}`}
+    ${visual?`<div class="patopts">${opts}</div>`:opts}
     ${ans
       ? `<div class="muted" style="margin-top:8px">${ans.choice===q.answerIndex?'✅ Correct':'❌ Wrong'} — answered by <b>${esc(ans.by)}</b></div>`
       : `<div class="muted" style="font-size:12px;margin-top:6px">Discuss in team chat, then anyone taps the answer — it locks for everyone. Auto-advances every ${RELAY_PER}s.</div>`}`;
@@ -2045,6 +2111,7 @@ function buildTeamReveal(round){
   else if(round.type==='relay'){ const qs=round.questions||[]; let correct=0;
     const rows=qs.map((q,i)=>{ const a=t?STORE['rq:'+G.roundIndex+':'+t.id+':'+i]:null;
       const ok=a&&a.choice===q.answerIndex; if(ok)correct++;
+      if(q.seq) return `<div class="patrevrow">${ok?'✓':'✗'} #${i+1} → ${patShape(q.opts[q.answerIndex])}</div>`;
       return `<div>${ok?'✓':'✗'} ${esc(q.q)}${q.code?` <code>${esc(q.code.replace(/\n/g,' '))}</code>`:''} → <b>${esc(q.options[q.answerIndex])}</b>`+
         (a&&!ok?` <span class="muted">(you: ${esc(q.options[a.choice]!=null?q.options[a.choice]:'—')})</span>`:'')+`</div>`; }).join('');
     correctHTML=`Your team got <b>${correct}/${qs.length}</b> right.<div class="muted" style="margin-top:8px;font-size:12px;line-height:1.7">${rows}</div>`; }
