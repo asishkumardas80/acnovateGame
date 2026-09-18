@@ -304,18 +304,18 @@ const ROUNDS = [
     answer:'num > 0 && num % 2 == 0' },
 
   { id:'r4', type:'quiz', title:'Guess the Output', duration:120, max:100,
-    prompt:'What does each snippet print? Answer all 5 — score is how many you get right.',
+    prompt:'What does each Java snippet print? Answer all 5 — score is how many you get right.',
     questions:[
-      {code:"console.log([1,2,3].map(x => x * 2).join('-'));",
-        options:['2-4-6','1-2-3','[2,4,6]','246'], answerIndex:0},
-      {code:"console.log(typeof null);",
-        options:['object','null','undefined','number'], answerIndex:0},
-      {code:"console.log(2 + '2' + 2);",
-        options:['222','6','42','24'], answerIndex:0},
-      {code:"console.log([10, 1, 2].sort());",
-        options:['[1, 10, 2]','[1, 2, 10]','[10, 2, 1]','[2, 1, 10]'], answerIndex:0},
-      {code:"console.log(0.1 + 0.2 === 0.3);",
-        options:['false','true','undefined','NaN'], answerIndex:0}
+      {code:'System.out.println("2" + 2 + 2);',
+        options:['24','222','42','6'], answerIndex:1},                 // "2"+2+2 -> "222"
+      {code:'System.out.println(2 + 2 + "2");',
+        options:['42','222','24','6'], answerIndex:0},                 // 2+2 first -> "42"
+      {code:'System.out.println(7 / 2);',
+        options:['3.5','4','3','2'], answerIndex:2},                   // integer division -> 3
+      {code:'System.out.println(10 % 4);',
+        options:['1','2','2.5','0'], answerIndex:1},                   // remainder -> 2
+      {code:"System.out.println(5 + 'A');",
+        options:['5A','65','70','A5'], answerIndex:2}                  // 'A' is 65 -> 70
     ] },
 
   { id:'r5', type:'scramble', title:'Word Scramble', duration:60, max:100,
@@ -420,7 +420,7 @@ const GAME_HELP = {
   r3:{how:'A Java method sums the POSITIVE even numbers, but the if-condition is blanked out. Type the missing Java condition (using num, >, %, ==, &&) and hit “Run tests” — it shows any failing cases.',
       ex:'The loop adds each num only when your condition is true. You need TWO checks joined with &&: one for “positive”, one for “even”. Java uses % for remainder and == to compare.',
       pts:'Score = the % of the 8 test cases your condition passes (up to 100). Watch the tricky one: negative evens must NOT be added.'},
-  r4:{how:'Five short code snippets — read each and pick what it prints to the console. Answer all five before time runs out.',
+  r4:{how:'Five short Java snippets — read each System.out.println and pick what it prints. Watch for the gotchas: string vs. int order, integer division, char values. Answer all five before time runs out.',
       pts:'20 points per correct answer (all 5 = 100).'},
   r5:{how:'Unscramble as many of the 10 tech terms as you can in 60 seconds. Type a word and hit ✓ (or Enter) to lock it in. Use ◀ Back / Next ▶ to move between words — jump around freely.',
       pts:'10 points per word you unscramble correctly (10 words = up to 100). Scores save automatically when time runs out.'},
