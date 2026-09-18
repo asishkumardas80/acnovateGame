@@ -283,7 +283,7 @@ const ROUNDS = [
   { id:'r2', type:'maze', title:'Maze Runner', duration:120, max:100, cols:10, rows:7,
     prompt:'Explore the fog! Collect ALL the gold coins, then reach the RED exit to clear the level — each level gets bigger. Arrow keys or the on-screen pad. More coins + levels = more points.' },
 
-  { id:'r3', type:'javafill', title:'Java Code Sprint', duration:240, max:100,
+  { id:'r3', type:'javafill', title:'Java Code Sprint', duration:180, max:100,
     prompt:'This Java method should return the sum of the POSITIVE even numbers only — ignore negatives and zero. Fill in the missing if-condition!',
     functionName:'sumEven',
     code:'public static int sumEven(int[] arr) {\n    int sum = 0;\n    for (int num : arr) {\n        if ( /* ??? */ ) {\n            sum += num;\n        }\n    }\n    return sum;\n}',
@@ -470,31 +470,20 @@ async function syncClock(){
 }
 const serverNow = ()=>Date.now()+serverOffset;
 
-// ---- Sound -----------------------------------------------------------------
-let actx=null;
-function beep(freq=660,dur=.12,type='sine',vol=.15){
-  try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)();
-    const o=actx.createOscillator(),g=actx.createGain();
-    o.type=type;o.frequency.value=freq;o.connect(g);g.connect(actx.destination);
-    g.gain.setValueAtTime(vol,actx.currentTime);
-    g.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+dur);
-    o.start();o.stop(actx.currentTime+dur);}catch(e){}
-}
-const sndGood =()=>{beep(660,.1);setTimeout(()=>beep(990,.14),90);};
-const sndBad  =()=>beep(160,.25,'sawtooth',.12);
-const sndAward=()=>{beep(523,.1);setTimeout(()=>beep(659,.1),90);setTimeout(()=>beep(784,.18),180);};
-const sndTick =()=>beep(880,.05,'square',.05);
+// ---- Sound (disabled) ------------------------------------------------------
+// All game sounds are turned off. These are no-ops so every existing call is
+// silently ignored across all games.
+function beep(){}
+const sndGood =()=>{};
+const sndBad  =()=>{};
+const sndAward=()=>{};
+const sndTick =()=>{};
 
 // ---- Confetti --------------------------------------------------------------
 const cvs=$('#confetti'),cx=cvs.getContext('2d');let parts=[];
 function resizeCvs(){cvs.width=innerWidth;cvs.height=innerHeight;}
 addEventListener('resize',resizeCvs);resizeCvs();
-function confetti(n=140){
-  for(let i=0;i<n;i++)parts.push({x:innerWidth/2,y:innerHeight/3,
-    vx:(Math.random()-.5)*14,vy:Math.random()*-12-4,
-    c:['#5b8cff','#7c5bff','#37d67a','#ffd257','#ff5470'][i%5],
-    r:4+Math.random()*4,life:60+Math.random()*40});
-}
+function confetti(){ /* disabled — no confetti popper */ }
 function confLoop(){cx.clearRect(0,0,cvs.width,cvs.height);
   parts=parts.filter(p=>p.life>0);
   parts.forEach(p=>{p.vy+=.3;p.x+=p.vx;p.y+=p.vy;p.life--;
@@ -835,8 +824,7 @@ function renderPlayer(){
   // dynamic bits
   if(stage==='game'){
     const my=myTeamTotal();
-    if(my>celebrated){ confetti(); sndAward(); }
-    celebrated=my;
+    celebrated=my;   // (no confetti/sound on every score tick — it was distracting)
     const sc=$('#teamscore'); if(sc) sc.textContent=my;
     const t=teamOf(MY.pid);
     const lb=$('#lb'); if(lb){ lb.innerHTML=leaderboardHTML(t&&t.id); }
@@ -1619,9 +1607,12 @@ function gameJavaFill(box,round){
   inp.addEventListener('drop',e=>{ e.preventDefault(); warn(); });
   inp.addEventListener('contextmenu',e=>e.preventDefault());
   inp.addEventListener('input',()=>{ if(inp.value.length-lastVal.length>25){ inp.value=lastVal; warn(); return; } lastVal=inp.value; });
-  const grade=()=>runTests(round.jsBefore+(inp.value.trim()||'false')+round.jsAfter, round.functionName, round.tests);
+  const grade=()=>{ const expr=inp.value.trim();
+    if(!expr) return {passed:0,total:round.tests.length,results:[],empty:true};   // blank = 0, no lucky passes
+    return runTests(round.jsBefore+expr+round.jsAfter, round.functionName, round.tests); };
   const callStr=(a)=>round.functionName+'('+JSON.stringify(a).slice(1,-1)+')';
   const show=(r)=>{
+    if(r.empty){ tr.innerHTML='<span class="muted">Type a condition, then Run tests.</span>'; return; }
     if(r.err){ tr.innerHTML=`<b style="color:var(--red)">Error: ${esc(r.err)}</b>`; return; }
     const fails=r.results.filter(x=>!x.pass);
     let html=`<b style="color:${r.passed===r.total?'var(--green)':'var(--red)'}">${r.passed}/${r.total} tests passing</b>`;
@@ -1633,6 +1624,7 @@ function gameJavaFill(box,round){
   $('#run',box).onclick=()=>show(grade());
   submitBtn(box);
   activeGame.finalize=()=>{const r=grade();
+    if(r.empty) return {score:0,display:'not answered'};
     return {score:Math.round(r.passed/r.total*round.max),display:`${r.passed}/${r.total} tests`};};
 }
 // 2) Maze Runner — fog of war + collect all coins + progressive levels.
