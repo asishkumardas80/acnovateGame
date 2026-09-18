@@ -303,10 +303,20 @@ const ROUNDS = [
     ],
     answer:'num > 0 && num % 2 == 0' },
 
-  { id:'r4', type:'quiz', title:'Guess the Output', duration:45, max:100,
-    prompt:'What does this snippet print to the console?',
-    code:"console.log([1,2,3].map(x => x * 2).join('-'));",
-    options:['2-4-6','1-2-3','[2,4,6]','246'], answerIndex:0 },
+  { id:'r4', type:'quiz', title:'Guess the Output', duration:120, max:100,
+    prompt:'What does each snippet print? Answer all 5 — score is how many you get right.',
+    questions:[
+      {code:"console.log([1,2,3].map(x => x * 2).join('-'));",
+        options:['2-4-6','1-2-3','[2,4,6]','246'], answerIndex:0},
+      {code:"console.log(typeof null);",
+        options:['object','null','undefined','number'], answerIndex:0},
+      {code:"console.log(2 + '2' + 2);",
+        options:['222','6','42','24'], answerIndex:0},
+      {code:"console.log([10, 1, 2].sort());",
+        options:['[1, 10, 2]','[1, 2, 10]','[10, 2, 1]','[2, 1, 10]'], answerIndex:0},
+      {code:"console.log(0.1 + 0.2 === 0.3);",
+        options:['false','true','undefined','NaN'], answerIndex:0}
+    ] },
 
   { id:'r5', type:'scramble', title:'Word Scramble', duration:60, max:100,
     prompt:'Unscramble as many tech terms as you can in 60 seconds! Type a word and hit ✓ to lock it in. Use ◀ Back / Next ▶ to jump between words.',
@@ -410,8 +420,8 @@ const GAME_HELP = {
   r3:{how:'A Java method sums the POSITIVE even numbers, but the if-condition is blanked out. Type the missing Java condition (using num, >, %, ==, &&) and hit “Run tests” — it shows any failing cases.',
       ex:'The loop adds each num only when your condition is true. You need TWO checks joined with &&: one for “positive”, one for “even”. Java uses % for remainder and == to compare.',
       pts:'Score = the % of the 8 test cases your condition passes (up to 100). Watch the tricky one: negative evens must NOT be added.'},
-  r4:{how:'Read the code snippet and pick what it prints to the console.',
-      pts:'Correct answer scores up to 100 — the sooner you answer, the more you get.'},
+  r4:{how:'Five short code snippets — read each and pick what it prints to the console. Answer all five before time runs out.',
+      pts:'20 points per correct answer (all 5 = 100).'},
   r5:{how:'Unscramble as many of the 10 tech terms as you can in 60 seconds. Type a word and hit ✓ (or Enter) to lock it in. Use ◀ Back / Next ▶ to move between words — jump around freely.',
       pts:'10 points per word you unscramble correctly (10 words = up to 100). Scores save automatically when time runs out.'},
   r6:{how:'A TEAM game! Your team shares one vault with one digit slot per member. You get YOUR OWN riddle — solve it, type your single digit, and hit "Lock in". Your slot turns green if correct (red to retry). The vault unlocks automatically once every teammate’s digit is right. Watch the vault fill live and help each other in chat!',
@@ -1521,15 +1531,24 @@ function refreshEmoji(){
   if(String(solved)!==grid.dataset.solved) renderEmoji();
 }
 function gameQuiz(box,round){
-  let sel=-1;
-  const codeHTML=round.code?`<pre class="code">${esc(round.code)}</pre>`:'';
-  box.innerHTML=codeHTML+round.options.map((o,i)=>`<button class="opt" data-i="${i}">${esc(o)}</button>`).join('');
+  // Supports one question (legacy code/options) OR several (round.questions).
+  const qs=round.questions||[{code:round.code,options:round.options,answerIndex:round.answerIndex}];
+  const sels=new Array(qs.length).fill(-1);
+  box.innerHTML=qs.map((q,qi)=>`
+    <div class="quizq">
+      ${qs.length>1?`<div class="hlbl" style="margin:${qi?'18px':'0'} 0 6px">Question ${qi+1} of ${qs.length}</div>`:''}
+      ${q.code?`<pre class="code">${esc(q.code)}</pre>`:''}
+      <div>${q.options.map((o,i)=>`<button class="opt" data-q="${qi}" data-i="${i}">${esc(o)}</button>`).join('')}</div>
+    </div>`).join('');
   box.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{
-    sel=+b.dataset.i;box.querySelectorAll('.opt').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');});
+    const qi=+b.dataset.q; sels[qi]=+b.dataset.i;
+    box.querySelectorAll('.opt[data-q="'+qi+'"]').forEach(x=>x.classList.remove('sel')); b.classList.add('sel');});
   submitBtn(box);
-  activeGame.finalize=()=>{const correct=sel===round.answerIndex;
-    return {score:sel<0?0:(correct?speedBonus(round):0),
-      display:sel<0?'no answer':(correct?'✓ correct':'✗ chose "'+round.options[sel]+'"')};};
+  activeGame.finalize=()=>{
+    let correct=0; qs.forEach((q,i)=>{ if(sels[i]===q.answerIndex) correct++; });
+    const answered=sels.some(s=>s>=0);
+    return {score:Math.round(correct/qs.length*round.max),
+      display:answered?`${correct}/${qs.length} correct`:'no answer'};};
 }
 function gameBughunt(box,round){
   let sel=-1;
@@ -1875,7 +1894,9 @@ function buildTeamReveal(round){
   const t=teamOf(MY.pid);
   let correctHTML='';
   if(round.type==='text') correctHTML=`Answer: <b>${esc(round.answer)}</b>`;
-  else if(round.type==='quiz') correctHTML=`Correct: <b>${esc(round.options[round.answerIndex])}</b>`;
+  else if(round.type==='quiz'){ const qs=round.questions||[{code:round.code,options:round.options,answerIndex:round.answerIndex}];
+    correctHTML='Answers:<div class="muted" style="margin-top:6px;font-size:12px;line-height:1.7">'+
+      qs.map((q,i)=>`${qs.length>1?('#'+(i+1)+': '):''}<code>${esc(q.code||'')}</code> → <b>${esc(q.options[q.answerIndex])}</b>`).join('<br>')+'</div>'; }
   else if(round.type==='bughunt') correctHTML=`Bug on <b>line ${round.answerLine}</b>. ${esc(round.explanation)}`;
   else if(round.type==='copy') correctHTML='Scored on how much you copied correctly.';
   else if(round.type==='scramble') correctHTML='Words: '+(round.words||[]).map(w=>`<b>${esc(w.toUpperCase())}</b>`).join(', ');
